@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>WASP - Système de Détection d'Intrusion Intelligent</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vanilla-tilt@1.7.0/dist/vanilla-tilt.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.min.js"></script>
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/waspfavicon.png') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+
+    </head>
+    <body>
+        <div class="custom-cursor" id="customCursor"></div>
+        <div class="cursor-ring" id="cursorRing"></div>
+
+        <!-- Navbar -->
+            <nav class="navbar fixed top-0 left-0 w-full z-50 py-4 px-6 lg:px-12 flex justify-between items-center"> <div class="logo flex items-center">
+                <span class="text-2xl font-bold text-yellow-400 glow-text"><img src="{{ url_for('static', filename='images/logowasp.png') }}" alt="" style="height: 60px; width: auto; max-width: 180px; object-fit: contain; margin-right: 15px;"></span>
+            </div>
+
+            <div class="hidden lg:flex space-x-8">
+                <a href="#home" class="nav-link text-white hover:text-yellow-400 transition">Accueil</a>
+                <a href="#features" class="nav-link text-white hover:text-yellow-400 transition">Fonctionnalités</a>
+                <a href="#comparison" class="nav-link text-white hover:text-yellow-400 transition">Comparatif</a>
+                <a href="#pricing" class="nav-link text-white hover:text-yellow-400 transition">Tarifs</a>
+                <a href="#testimonials" class="nav-link text-white hover:text-yellow-400 transition">Avis</a>
+                <a href="#docs" class="nav-link text-white hover:text-yellow-400 transition">Documentation</a>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <a href="{{ url_for('login') }}" class="btn-secondary px-4 py-2 rounded-full text-sm font-medium">Connexion</a>
+                <div class="language-selector">
+                    <select class="language-dropdown">
+                        <option value="fr">🇫🇷 FR</option>
+                        <option value="en">🇬🇧 EN</option>
+                    </select>
+                </div>
+
+            </nav>
+
+            <!-- Hero Section -->
+            <section
+                id="home" class="section relative flex items-center h-screen overflow-hidden">
+
+                <!-- Background canvas -->
+                <div id="canvas-container" class="absolute inset-0 -z-1"></div>
+
+                <!-- Contenu texte -->
+                <div class="container mx-auto px-6 lg:px-12 relative z-10 h-full flex items-center">
+                    <div class="hero-content w-full lg:w-1/2">
+                        <h2 class="text-3xl lg:text-4xl font-bold text-white mb-6">
+                            Protégez vos réseaux
+                            <br>en temps réel, avant même que la menace n'agisse
+                            <span class="highlight-wave">
+                                <span>.</span>
+                                <span>.</span>
+                                <span>.</span>
+                            </span>
+                        </h2>
+
+                        <p class="text-gray-300 text-lg mb-8">
+                            Un IDS de nouvelle génération qui combine la puissance de trois modules
+                                            de détection (signatures, comportements et attaques zero-day) pour une
+                                            protection ultra-réactive et intelligente contre toutes les menaces réseau.
+                        </p>
+
+                        <a href="{{ url_for('login') }}" class="btn-primary px-8 py-3 rounded-full text-lg font-bold pulse" data-tilt>Commencer</a>
+                    </div>
+                </div>
+
+                <!-- Modèle 3D - visible uniquement sur desktop -->
+                <div
+                    class="wasp-container" id="wasp-viewer"><!-- Three.js peuplera ceci -->
+                </div>
+
+                <!-- Scroll Indicator -->
+                <div class="scroll-indicator absolute bottom-10 left-1/2 transform -translate-x-1/2 z-20">
+                    <i class="fas fa-chevron-down text-2xl text-white animate-bounce"></i>
+                </div>
+            </section>
+
+            <!-- Features Section -->
+            <section id="features" class="section bg-black bg-opacity-90">
+                <div class="container mx-auto px-6 lg:px-12">
+                    <h2 class="text-3xl lg:text-4xl font-bold text-center text-white mb-4">Fonctionnalités</h2>
+                    <p class="text-gray-400 text-center mb-12 max-w-3xl mx-auto">Découvrez les capacités uniques de notre plateforme de sécurité intelligente</p>
+
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <!-- Feature 1 -->
+                        <div class="feature-card rounded-xl p-6" data-tilt>
+                            <div class="feature-icon text-center">
+                                <i class="fas fa-bolt"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-3 text-center">Détection temps réel</h3>
+                            <p class="text-gray-300 text-center">Surveillance continue de votre réseau avec analyse en temps réel des paquets et détection immédiate des anomalies.</p>
+                        </div>
+
+                        <!-- Feature 2 -->
+                        <div class="feature-card rounded-xl p-6" data-tilt>
+                            <div class="feature-icon text-center">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-3 text-center">Multi-modèles IA</h3>
+                            <p class="text-gray-300 text-center">Combinaison de plusieurs modèles d'IA (Kitsune, LUCID, Vertex AI) pour une détection plus précise et adaptable.</p>
+                        </div>
+
+                        <!-- Feature 3 -->
+                        <div class="feature-card rounded-xl p-6" data-tilt>
+                            <div class="feature-icon text-center">
+                                <i class="fas fa-file-code"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-3 text-center">Analyse de fichiers .pcap</h3>
+                            <p class="text-gray-300 text-center">Analyse approfondie des captures réseau pour identifier les menaces passées et améliorer les modèles de détection.</p>
+                        </div>
+
+                        <!-- Feature 4 -->
+                        <div class="feature-card rounded-xl p-6" data-tilt>
+                            <div class="feature-icon text-center">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-3 text-center">Dashboard en temps réel</h3>
+                            <p class="text-gray-300 text-center">Interface intuitive pour visualiser l'état de votre réseau, les alertes et les statistiques de sécurité.</p>
+                        </div>
+
+                        <!-- Feature 5 -->
+                        <div class="feature-card rounded-xl p-6" data-tilt>
+                            <div class="feature-icon text-center">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-3 text-center">Recommandations IA</h3>
+                            <p class="text-gray-300 text-center">Suggestions intelligentes pour renforcer votre sécurité en fonction des menaces détectées et des tendances.</p>
+                        </div>
+
+                        <!-- Feature 6 -->
+                        <div class="feature-card rounded-xl p-6" data-tilt>
+                            <div class="feature-icon text-center">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-3 text-center">Protection proactive</h3>
+                            <p class="text-gray-300 text-center">Notre système apprend continuellement pour anticiper et bloquer les nouvelles menaces avant qu'elles n'atteignent votre réseau.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Comparison Section -->
+            <section id="comparison" class="section bg-black bg-opacity-90">
+                <div class="container mx-auto px-6 lg:px-12">
+                    <h2 class="text-3xl lg:text-4xl font-bold text-center text-white mb-4">Comparatif</h2>
+                    <p class="text-gray-400 text-center mb-12 max-w-3xl mx-auto">
+                        WASP vs les solutions traditionnelles de détection d'intrusion
+                    </p>
+
+                    <div class="comparison-table rounded-xl overflow-hidden">
+                        <table class="w-full">
+                            <thead>
+                                <tr>
+                                    <th class="py-4 px-6 text-left text-yellow-400">Fonctionnalité</th>
+                                    <th class="py-4 px-6 text-center">WASP</th>
+                                    <th class="py-4 px-6 text-center">Snort</th>
+                                    <th class="py-4 px-6 text-center">Suricata</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Type de détection</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">IA + Signature</td>
+                                    <td class="py-4 px-6 text-center">Signature</td>
+                                    <td class="py-4 px-6 text-center">Signature</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Détection comportementale / anomalies</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                    <td class="py-4 px-6 text-center text-orange-400">Partielle</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Détection d’attaques Zero-Day</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️ (via IA)</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Modèles IA intégrés</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Visualisation en direct</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Interface utilisateur</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">Intuitive</td>
+                                    <td class="py-4 px-6 text-center">CLI</td>
+                                    <td class="py-4 px-6 text-center">CLI</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Facilité d'installation</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️</td>
+                                    <td class="py-4 px-6 text-center">Moyenne</td>
+                                    <td class="py-4 px-6 text-center">Moyenne</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Recommandations automatiques</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Support de fichiers .pcap</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️</td>
+                                    <td class="py-4 px-6 text-center">✔️</td>
+                                    <td class="py-4 px-6 text-center">✔️</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-4 px-6 text-left">Mises à jour intelligentes</td>
+                                    <td class="py-4 px-6 text-center text-green-400 font-bold">✔️</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                    <td class="py-4 px-6 text-center text-red-400">❌</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pricing Section -->
+            <section id="pricing" class="section bg-black bg-opacity-90">
+                <div class="container mx-auto px-6 lg:px-12">
+                    <h2 class="text-3xl lg:text-4xl font-bold text-center text-white mb-4">Tarifs</h2>
+                    <p class="text-gray-400 text-center mb-12 max-w-3xl mx-auto">Choisissez le plan qui correspond à vos besoins de sécurité</p>
+
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                        <!-- Plan 1 -->
+                        <div class="pricing-card rounded-xl p-8" data-tilt>
+                            <h3 class="text-xl font-bold text-white mb-4 text-center">Individuel</h3>
+                            <div class="text-center mb-6">
+                                <span class="text-4xl font-bold text-white">29€</span>
+                                <span class="text-gray-400">/mois</span>
+                            </div>
+                            <ul class="mb-8 space-y-3">
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Protection pour 1 réseau
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Détection temps réel
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Modèle Kitsune
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Dashboard de base
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-times text-red-400 mr-2"></i>
+                                    Support prioritaire
+                                </li>
+                            </ul>
+                            <button class="btn-secondary w-full py-3 rounded-full font-medium">Souscrire</button>
+                        </div>
+
+                        <!-- Plan 2 (Popular) -->
+                        <div class="pricing-card popular rounded-xl p-8 transform scale-105" data-tilt>
+                            <div class="text-center mb-2">
+                                <span class="inline-block bg-yellow-400 text-black text-xs font-bold px-3 py-1 rounded-full">Recommandé</span>
+                            </div>
+                            <h3 class="text-xl font-bold text-white mb-4 text-center">Entreprise</h3>
+                            <div class="text-center mb-6">
+                                <span class="text-4xl font-bold text-white">99€</span>
+                                <span class="text-gray-400">/mois</span>
+                            </div>
+                            <ul class="mb-8 space-y-3">
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Protection pour 5 réseaux
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Tous les modèles IA
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Dashboard avancé
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Support prioritaire
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Rapports personnalisés
+                                </li>
+                            </ul>
+                            <button class="btn-primary w-full py-3 rounded-full font-bold">Souscrire</button>
+                        </div>
+
+                        <!-- Plan 3 -->
+                        <div class="pricing-card rounded-xl p-8" data-tilt>
+                            <h3 class="text-xl font-bold text-white mb-4 text-center">Organisation</h3>
+                            <div class="text-center mb-6">
+                                <span class="text-4xl font-bold text-white">Contact</span>
+                            </div>
+                            <ul class="mb-8 space-y-3">
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Protection illimitée
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Tous les modèles IA
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Dashboard personnalisé
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Support 24/7
+                                </li>
+                                <li class="flex items-center text-gray-300">
+                                    <i class="fas fa-check text-green-400 mr-2"></i>
+                                    Intégration sur mesure
+                                </li>
+                            </ul>
+                            <button class="btn-secondary w-full py-3 rounded-full font-medium">Contactez-nous</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Testimonials Section -->
+            <section id="testimonials" class="section bg-black bg-opacity-90">
+                <div class="container mx-auto px-6 lg:px-12">
+                    <h2 class="text-3xl lg:text-4xl font-bold text-center text-white mb-4">Avis clients</h2>
+                    <p class="text-gray-400 text-center mb-12 max-w-3xl mx-auto">Ce que nos clients disent de WASP</p>
+
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <!-- Testimonial 1 -->
+                        <div class="testimonial-card rounded-xl p-6" data-tilt>
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center text-black font-bold mr-4">JD</div>
+                                <div>
+                                    <h4 class="text-white font-bold">Jean Dupont</h4>
+                                    <div class="flex text-yellow-400">
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-gray-300">"WASP a révolutionné notre approche de la sécurité réseau. La détection des anomalies est bien plus efficace qu'avec les solutions traditionnelles."</p>
+                        </div>
+
+                        <!-- Testimonial 2 -->
+                        <div class="testimonial-card rounded-xl p-6" data-tilt>
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 rounded-full bg-blue-400 flex items-center justify-center text-black font-bold mr-4">MS</div>
+                                <div>
+                                    <h4 class="text-white font-bold">Marie Sanchez</h4>
+                                    <div class="flex text-yellow-400">
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star-half-alt"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-gray-300">"L'interface est intuitive et les recommandations de l'IA nous ont permis de renforcer notre sécurité de manière proactive. Un must pour les PME."</p>
+                        </div>
+
+                        <!-- Testimonial 3 -->
+                        <div class="testimonial-card rounded-xl p-6" data-tilt>
+                            <div class="flex items-center mb-4">
+                                <div class="w-12 h-12 rounded-full bg-green-400 flex items-center justify-center text-black font-bold mr-4">TL</div>
+                                <div>
+                                    <h4 class="text-white font-bold">Thomas Leroy</h4>
+                                    <div class="flex text-yellow-400">
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                        <i class="fas fa-star"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-gray-300">"En tant qu'administrateur réseau, WASP m'a fait gagner un temps précieux. Les alertes sont pertinentes et les faux positifs bien moins nombreux."</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Documentation Section -->
+            <section id="docs" class="section bg-black bg-opacity-90">
+                <div class="container mx-auto px-6 lg:px-12">
+                    <h2 class="text-3xl lg:text-4xl font-bold text-center text-white mb-4">Documentation</h2>
+                    <p class="text-gray-400 text-center mb-12 max-w-3xl mx-auto">Ressources pour vous aider à tirer le meilleur parti de WASP</p>
+
+                    <div
+                        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Doc 1 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-book"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">Guide d'installation</h3>
+                            <p class="text-gray-300 text-sm">Toutes les étapes pour déployer WASP sur votre infrastructure</p>
+                        </a>
+
+                        <!-- Doc 2 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-code"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">API Documentation</h3>
+                            <p class="text-gray-300 text-sm">Intégrez WASP à vos outils existants via notre API complète</p>
+                        </a>
+
+                        <!-- Doc 3 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">Configuration avancée</h3>
+                            <p class="text-gray-300 text-sm">Personnalisez WASP pour répondre à vos besoins spécifiques</p>
+                        </a>
+
+                        <!-- Doc 4 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">Bonnes pratiques</h3>
+                            <p class="text-gray-300 text-sm">Maximisez votre sécurité avec nos recommandations</p>
+                        </a>
+
+                        <!-- Doc 5 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-question-circle"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">FAQ</h3>
+                            <p class="text-gray-300 text-sm">Réponses aux questions les plus fréquentes</p>
+                        </a>
+
+                        <!-- Doc 6 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">Cas d'utilisation</h3>
+                            <p class="text-gray-300 text-sm">Exemples concrets d'implémentation de WASP</p>
+                        </a>
+
+                        <!-- Doc 7 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-chart-bar"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">Analyse des données</h3>
+                            <p class="text-gray-300 text-sm">Comment interpréter les données de sécurité générées</p>
+                        </a>
+
+                        <!-- Doc 8 -->
+                        <a href="#" class="doc-card rounded-xl p-6 flex flex-col items-center text-center">
+                            <div class="doc-icon">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <h3 class="text-lg font-bold text-white mb-2">Formation</h3>
+                            <p class="text-gray-300 text-sm">Ressources pour former vos équipes à WASP</p>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Footer -->
+            <footer class="bg-black py-12 px-6 lg:px-12 border-t border-gray-800">
+                <div class="container mx-auto">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                        <div>
+                            <h3 class="text-xl font-bold text-white mb-4">WASP</h3>
+                            <p class="text-gray-400 mb-4">Système de Détection d'Intrusion Intelligent pour protéger vos réseaux contre les menaces modernes.</p>
+                            <div class="flex space-x-4">
+                                <a href="#" class="social-icon">
+                                    <i class="fab fa-twitter"></i>
+                                </a>
+                                <a href="#" class="social-icon">
+                                    <i class="fab fa-linkedin"></i>
+                                </a>
+                                <a href="#" class="social-icon">
+                                    <i class="fab fa-github"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 class="text-lg font-bold text-white mb-4">Liens utiles</h4>
+                            <ul class="space-y-2">
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Conditions d'utilisation</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Politique de confidentialité</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Mentions légales</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Contact</a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h4 class="text-lg font-bold text-white mb-4">Ressources</h4>
+                            <ul class="space-y-2">
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Blog</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Documentation</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Statut du service</a>
+                                </li>
+                                <li>
+                                    <a href="#" class="footer-link text-gray-400 hover:text-yellow-400">Centre d'aide</a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h4 class="text-lg font-bold text-white mb-4">Newsletter</h4>
+                            <p class="text-gray-400 mb-4">Abonnez-vous pour recevoir les dernières actualités et mises à jour.</p>
+                            <div class="flex">
+                                <input type="email" placeholder="Votre email" class="bg-gray-900 text-white px-4 py-2 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 w-full">
+                                <button class="bg-yellow-400 text-black px-4 py-2 rounded-r-lg font-bold hover:bg-yellow-300 transition">OK</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500">
+                        <p>© 2025 WASP Security. Tous droits réservés.</p>
+                    </div>
+                </div>
+            </footer>
+
+            <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+            <script>
+                const cursor = document.getElementById('customCursor');
+  const ring = document.getElementById('cursorRing');
+
+  document.addEventListener('mousemove', (e) => {
+    // Déplace le point central
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top = e.clientY + 'px';
+    
+    // Déplace le cercle avec un léger retard pour l'effet de traînée
+    setTimeout(() => {
+      ring.style.left = e.clientX + 'px';
+      ring.style.top = e.clientY + 'px';
+    }, 50);
+  });
+
+  // Effet de clic
+  document.addEventListener('mousedown', () => {
+    ring.style.transform = 'translate(-50%, -50%) scale(0.7)';
+    ring.style.borderWidth = '3px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    ring.style.transform = 'translate(-50%, -50%) scale(1)';
+    ring.style.borderWidth = '2px';
+  });
+
+  // Cache le curseur quand la souris quitte la fenêtre
+  document.addEventListener('mouseout', () => {
+    cursor.style.opacity = '0';
+    ring.style.opacity = '0';
+  });
+
+  document.addEventListener('mouseover', () => {
+    cursor.style.opacity = '1';
+    ring.style.opacity = '1';
+  });
+            </script>
+        </body>
+    </body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorateur PCAP - Analyse Réseau</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pcap.css') }}">
+</head>
+<body class="min-h-screen p-4">
+    <div class="container mx-auto">
+        <!-- Header with back button -->
+        <div class="flex items-center mb-8">
+            <button class="back-button flex items-center text-lg neon-text mr-4">
+                <i class="fas fa-arrow-left mr-2"></i>
+                <a href="{{ url_for('dashboard') }}"><span>Retour au tableau de bord</span></a>
+            </button>
+            <h1 class="text-3xl font-bold neon-text font-['Orbitron']">Explorateur PCAP</h1>
+        </div>
+        
+        <!-- Upload zone -->
+        <div id="dropzone" class="dropzone p-8 mb-8 text-center cursor-pointer">
+            <div class="flex flex-col items-center justify-center">
+                <i class="fas fa-cloud-upload-alt text-4xl mb-4" style="color: var(--neon-blue);"></i>
+                <p class="text-xl mb-2">Glissez-déposez vos fichiers PCAP ici</p>
+                <p class="text-sm opacity-70 mb-4">ou cliquez pour sélectionner des fichiers</p>
+                <input type="file" id="fileInput" class="hidden" accept=".pcap,.pcapng" multiple>
+                <button id="browseButton" class="neon-button px-6 py-2 rounded-full font-medium">Parcourir les fichiers</button>
+            </div>
+        </div>
+        
+        <!-- Search and filter panel -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 p-4 neon-border rounded-lg">
+            <div class="relative w-full md:w-1/3 mb-4 md:mb-0">
+                <input type="text" placeholder="Rechercher des fichiers..." class="search-input w-full px-4 py-2 rounded-full">
+                <i class="fas fa-search absolute right-4 top-3 opacity-70"></i>
+            </div>
+            
+            <div class="flex space-x-4">
+                <div>
+                    <label class="block text-sm mb-1">Filtrer par statut</label>
+                    <select class="search-input px-3 py-1 rounded">
+                        <option>Tous</option>
+                        <option>Analysé</option>
+                        <option>En cours</option>
+                        <option>Erreur</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm mb-1">Trier par</label>
+                    <select class="search-input px-3 py-1 rounded">
+                        <option>Date récente</option>
+                        <option>Ancienne date</option>
+                        <option>Taille (croissant)</option>
+                        <option>Taille (décroissant)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <!-- File grid -->
+        <div id="fileGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Sample PCAP cards will be added here dynamically -->
+        </div>
+    </div>
+
+    <script>
+        // Sample data for existing files
+        const existingFiles = [
+            {
+                name: "capture_2023_06_15.pcap",
+                size: "24.7 MB",
+                status: "completed",
+                color: "purple"
+            },
+            {
+                name: "network_traffic_noon.pcap",
+                size: "152.3 MB",
+                status: "processing",
+                color: "blue"
+            },
+            {
+                name: "error_capture.pcap",
+                size: "8.2 MB",
+                status: "error",
+                color: "pink"
+            },
+            {
+                name: "large_capture_weekend.pcap",
+                size: "1.2 GB",
+                status: "completed",
+                color: "green"
+            },
+            {
+                name: "test_capture_1.pcap",
+                size: "4.5 MB",
+                status: "completed",
+                color: "yellow"
+            },
+            {
+                name: "malicious_traffic.pcap",
+                size: "67.8 MB",
+                status: "error",
+                color: "red"
+            }
+        ];
+
+        // Function to create a PCAP card
+        function createPcapCard(file) {
+            const statusTexts = {
+                "completed": "✔️ Analysé",
+                "processing": "🕒 En cours",
+                "error": "❌ Erreur"
+            };
+            
+            const statusClasses = {
+                "completed": "status-completed",
+                "processing": "status-processing",
+                "error": "status-error"
+            };
+            
+            const colorClasses = {
+                "purple": "bg-purple-900",
+                "blue": "bg-blue-900",
+                "pink": "bg-pink-900",
+                "green": "bg-green-900",
+                "yellow": "bg-yellow-900",
+                "red": "bg-red-900"
+            };
+
+            const card = document.createElement('div');
+            card.className = 'neon-card p-4 relative overflow-hidden';
+            card.innerHTML = `
+                <div class="absolute top-0 right-0 w-16 h-16 ${colorClasses[file.color]} opacity-20 transform rotate-45 translate-x-8 -translate-y-8"></div>
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-medium truncate max-w-[70%]">${file.name}</h3>
+                    <span class="status-badge ${statusClasses[file.status]}">${statusTexts[file.status]}</span>
+                </div>
+                <p class="text-sm opacity-80 mb-3">${file.size}</p>
+                
+                <div class="sparkline mb-4"></div>
+                
+                <div class="flex justify-between items-center">
+                    <select class="model-select text-xs px-2 py-1 rounded">
+                        <option>Modèle</option>
+                        <option>Kitsune</option>
+                        <option>All</option>
+                        <option>Custom</option>
+                    </select>
+                    <button class="neon-button text-xs px-3 py-1 rounded ${
+                        file.status === 'processing' ? 'disabled' : ''
+                    }">${
+                        file.status === 'processing' ? 'En cours...' : 
+                        file.status === 'error' ? 'Réessayer' : 'Analyser'
+                    }</button>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // Function to generate sparkline
+        function generateSparkline(sparkline) {
+            const width = sparkline.offsetWidth;
+            const height = sparkline.offsetHeight;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            sparkline.appendChild(canvas);
+            
+            const ctx = canvas.getContext('2d');
+            const points = [];
+            
+            // Generate random points
+            for (let i = 0; i < 20; i++) {
+                points.push(Math.random() * height);
+            }
+            
+            // Draw sparkline
+            ctx.strokeStyle = '#00f7ff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const step = width / (points.length - 1);
+            points.forEach((point, i) => {
+                const x = i * step;
+                const y = height - point;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+        }
+
+        // Initialize the page with existing files
+        document.addEventListener('DOMContentLoaded', function() {
+            const fileGrid = document.getElementById('fileGrid');
+            
+            // Add existing files to the grid
+            existingFiles.forEach(file => {
+                const card = createPcapCard(file);
+                fileGrid.appendChild(card);
+            });
+            
+            // Generate sparklines for all cards
+            document.querySelectorAll('.sparkline').forEach(generateSparkline);
+            
+            // Set up file input
+            const fileInput = document.getElementById('fileInput');
+            const browseButton = document.getElementById('browseButton');
+            
+            browseButton.addEventListener('click', function() {
+                fileInput.click();
+            });
+            
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files.length > 0) {
+                    handleFiles(e.target.files);
+                }
+            });
+        });
+
+        // Drag and drop functionality
+        const dropzone = document.getElementById('dropzone');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight() {
+            dropzone.classList.add('active');
+        }
+
+        function unhighlight() {
+            dropzone.classList.remove('active');
+        }
+
+        dropzone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            const fileGrid = document.getElementById('fileGrid');
+            
+            // Create a new card for each uploaded file
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                
+                // Create a new file object with random properties for demo
+                const newFile = {
+                    name: file.name,
+                    size: formatFileSize(file.size),
+                    status: "processing", // Default status for new files
+                    color: getRandomColor()
+                };
+                
+                const card = createPcapCard(newFile);
+                fileGrid.prepend(card); // Add new files at the top
+                
+                // Generate sparkline for the new card
+                const sparkline = card.querySelector('.sparkline');
+                generateSparkline(sparkline);
+                
+                // Simulate processing completion after a delay
+                setTimeout(() => {
+                    updateFileStatus(card, "completed");
+                }, 2000 + Math.random() * 3000);
+            }
+            
+            alert(`${files.length} fichier(s) ajouté(s) à l'historique!`);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            else if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+            else return (bytes / 1073741824).toFixed(1) + ' GB';
+        }
+
+        function getRandomColor() {
+            const colors = ['purple', 'blue', 'pink', 'green', 'yellow', 'red'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function updateFileStatus(card, newStatus) {
+            const statusTexts = {
+                "completed": "✔️ Analysé",
+                "processing": "🕒 En cours",
+                "error": "❌ Erreur"
+            };
+            
+            const statusClasses = {
+                "completed": "status-completed",
+                "processing": "status-processing",
+                "error": "status-error"
+            };
+            
+            const statusBadge = card.querySelector('.status-badge');
+            const button = card.querySelector('button');
+            
+            // Update status badge
+            statusBadge.className = `status-badge ${statusClasses[newStatus]}`;
+            statusBadge.textContent = statusTexts[newStatus];
+            
+            // Update button
+            if (newStatus === 'processing') {
+                button.textContent = 'En cours...';
+                button.disabled = true;
+            } else if (newStatus === 'error') {
+                button.textContent = 'Réessayer';
+                button.disabled = false;
+            } else {
+                button.textContent = 'Analyser';
+                button.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

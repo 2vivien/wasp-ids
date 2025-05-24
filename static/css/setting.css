@@ -1,0 +1,73 @@
+body {
+    background: #050510;
+    font-family: 'Courier New', monospace;
+}
+.cyber-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+.cyber-scrollbar::-webkit-scrollbar-track {
+    background: #0a0a1a;
+}
+.cyber-scrollbar::-webkit-scrollbar-thumb {
+    background: #00f7ff;
+    border-radius: 4px;
+}
+.terminal-text {
+    color: #00f7ff;
+    text-shadow: 0 0 5px #00f7ff;
+}
+.terminal-bg {
+    background-color: rgba(15, 15, 35, 0.8);
+    border: 1px solid #00f7ff;
+}
+.password-strength {
+    height: 4px;
+    transition: all 0.3s ease;
+}
+.password-strength.weak {
+    background-color: #ff2d75;
+    width: 33%;
+}
+.password-strength.medium {
+    background-color: #ffcc00;
+    width: 66%;
+}
+.password-strength.strong {
+    background-color: #00f7ff;
+    width: 100%;
+}
+.profile-pic {
+    border: 2px solid #ffcc00;
+    box-shadow: 0 0 15px #ffcc00;
+    transition: all 0.3s ease;
+}
+.profile-pic:hover {
+    box-shadow: 0 0 25px #ffcc00;
+    transform: scale(1.05);
+}
+.slider-thumb::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #00f7ff;
+    cursor: pointer;
+    box-shadow: 0 0 10px #00f7ff;
+}
+.slider-thumb::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #00f7ff;
+    cursor: pointer;
+    box-shadow: 0 0 10px #00f7ff;
+}
+.toggle-checkbox:checked {
+    right: 0;
+    border-color: #00f7ff;
+    background-color: #00f7ff;
+}
+.toggle-checkbox:checked + .toggle-label {
+    background-color: rgba(0, 247, 255, 0.2);
+}

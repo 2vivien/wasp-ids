@@ -1,0 +1,79 @@
+body {
+    background: var(--darker-bg);
+    font-family: 'Courier New', monospace;
+    color: #00f7ff;
+}
+.cyber-scrollbar::-webkit-scrollbar {
+    width: 8px;
+}
+.cyber-scrollbar::-webkit-scrollbar-track {
+    background: #0a0a1a;
+}
+.cyber-scrollbar::-webkit-scrollbar-thumb {
+    background: #00f7ff;
+    border-radius: 4px;
+}
+.terminal-text {
+    color: #00f7ff;
+    text-shadow: 0 0 5px #00f7ff;
+}
+.terminal-bg {
+    background-color: rgba(15, 15, 35, 0.8);
+    border: 1px solid #00f7ff;
+}
+.panel-header {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.panel-header:hover {
+    background-color: rgba(0, 247, 255, 0.1);
+}
+.panel-content {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+.log-entry {
+    border-left: 3px solid #00f7ff;
+    padding-left: 10px;
+    margin-bottom: 5px;
+    transition: all 0.2s ease;
+}
+.log-entry:hover {
+    background-color: rgba(0, 247, 255, 0.05);
+}
+.log-entry.INFO {
+    border-left-color: #00f7ff;
+}
+.log-entry.WARNING {
+    border-left-color: #ffcc00;
+}
+.log-entry.ERROR {
+    border-left-color: #ff2d75;
+}
+.user-card {
+    background: rgba(15, 15, 35, 0.8);
+    border: 1px solid #00f7ff;
+    transition: all 0.3s ease;
+}
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 15px #00f7ff;
+}
+.success-badge {
+    background-color: rgba(0, 247, 255, 0.2);
+    color: #00f7ff;
+}
+.fail-badge {
+    background-color: rgba(255, 45, 117, 0.2);
+    color: #ff2d75;
+}
+.analysis-row {
+    border-bottom: 1px solid rgba(0, 247, 255, 0.2);
+}
+.analysis-row:hover {
+    background-color: rgba(0, 247, 255, 0.05);
+}
+.filter-active {
+    background-color: rgba(0, 247, 255, 0.2);
+    border-color: #00f7ff;
+}

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paramètres IDS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setting.css') }}">
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="relative w-full max-w-5xl bg-cyber-dark rounded-xl border border-cyber-primary shadow-2xl overflow-hidden">
+        <!-- Back Button -->
+        <button onclick="window.history.back()" class="absolute top-4 left-4 z-10 flex items-center text-cyber-primary hover:text-cyber-secondary transition-all">
+            <a href="{{ url_for('dashboard') }}">
+                <i class="fas fa-arrow-left mr-2 text-xl animate-glow"></i>
+                <span class="font-mono">Retour</span>
+            </a>
+        </button>
+
+        <!-- Tabs -->
+        <div class="flex border-b border-cyber-primary">
+            <button id="systemTab" class="flex-1 py-3 font-mono text-cyber-primary bg-cyber-dark hover:bg-opacity-70 transition-all border-r border-cyber-primary">
+                <i class="fas fa-cog mr-2"></i>Paramètres Système
+            </button>
+            <button id="profileTab" class="flex-1 py-3 font-mono text-cyber-secondary hover:text-cyber-primary transition-all">
+                <i class="fas fa-user mr-2"></i>Profil Utilisateur
+            </button>
+        </div>
+
+        <!-- System Settings Panel -->
+        <div id="systemPanel" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Left Column -->
+                <div class="space-y-6">
+                    <!-- Kitsune Threshold Slider -->
+                    <div class="bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                        <label class="block text-cyber-primary font-mono mb-2">
+                            <i class="fas fa-robot mr-2"></i>Seuil de Kitsune (0.0–1.0)
+                        </label>
+                        <div class="flex items-center space-x-4">
+                            <input type="range" min="0" max="100" value="75" class="w-full h-2 bg-cyber-dark rounded-lg appearance-none cursor-pointer slider-thumb">
+                            <span id="thresholdValue" class="text-cyber-primary font-mono w-16 text-center">0.75</span>
+                        </div>
+                    </div>
+
+                    <!-- LUCID Toggle -->
+                    <div class="bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                        <label class="flex items-center justify-between cursor-pointer">
+                            <span class="text-cyber-primary font-mono">
+                                <i class="fas fa-brain mr-2"></i>Activer LUCID
+                            </span>
+                            <div class="relative">
+                                <input type="checkbox" id="lucidToggle" class="sr-only toggle-checkbox" checked>
+                                <div class="toggle-label block w-14 h-8 bg-cyber-dark rounded-full border border-cyber-primary"></div>
+                                <div class="dot absolute left-1 top-1 bg-cyber-primary w-6 h-6 rounded-full transition transform translate-x-6"></div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Vertex AI Retrain Button -->
+                    <div class="bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                        <button id="retrainBtn" class="w-full py-2 px-4 bg-cyber-dark hover:bg-opacity-70 text-cyber-primary font-mono border border-cyber-primary rounded-lg transition-all flex items-center justify-center">
+                            <i class="fas fa-sync-alt mr-2"></i>Réentraînement Vertex AI
+                        </button>
+                        <div id="retrainProgress" class="hidden mt-2">
+                            <div class="w-full bg-cyber-dark rounded-full h-2.5">
+                                <div class="bg-cyber-primary h-2.5 rounded-full animate-pulse" style="width: 0%"></div>
+                            </div>
+                            <p class="text-cyber-primary text-xs font-mono mt-1">Initialisation...</p>
+                        </div>
+                    </div>
+
+                    <!-- API Key Input -->
+                    <div class="bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                        <label class="block text-cyber-primary font-mono mb-2">
+                            <i class="fas fa-key mr-2"></i>Clé API Vertex
+                        </label>
+                        <div class="relative">
+                            <input type="password" id="apiKeyInput" class="w-full bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono p-2 rounded-lg pr-10" value="sk_test_51N...">
+                            <button id="toggleApiKey" class="absolute right-2 top-2 text-cyber-secondary hover:text-cyber-primary">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="space-y-6">
+                    <!-- PCAP Directory Dropdown -->
+                    <div class="bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                        <label class="block text-cyber-primary font-mono mb-2">
+                            <i class="fas fa-folder mr-2"></i>Répertoire de fichiers PCAP
+                        </label>
+                        <select class="w-full bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono p-2 rounded-lg">
+                            <option>/var/log/kitsune/pcap</option>
+                            <option>/usr/local/kitsune/pcap</option>
+                            <option>/home/user/kitsune/pcap</option>
+                        </select>
+                    </div>
+
+                    <!-- Analysis Frequency Dropdown -->
+                    <div class="bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                        <label class="block text-cyber-primary font-mono mb-2">
+                            <i class="fas fa-clock mr-2"></i>Fréquence d'analyse
+                        </label>
+                        <select class="w-full bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono p-2 rounded-lg">
+                            <option>10 min</option>
+                            <option>en continu</option>
+                            <option>à la demande</option>
+                        </select>
+                    </div>
+
+                    <!-- Security Section -->
+                    <div class="bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                        <h3 class="text-cyber-primary font-mono mb-3">
+                            <i class="fas fa-shield-alt mr-2"></i>Sécurité
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <span class="text-cyber-primary font-mono">Journalisation</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only toggle-checkbox" checked>
+                                    <div class="toggle-label w-11 h-6 bg-cyber-dark rounded-full border border-cyber-primary"></div>
+                                    <div class="dot absolute left-1 top-1 bg-cyber-primary w-4 h-4 rounded-full transition transform translate-x-5"></div>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-cyber-primary font-mono mb-1">Token de session</label>
+                                <div class="flex items-center">
+                                    <input type="text" readonly class="flex-1 bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono p-2 rounded-lg" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                                    <button class="ml-2 p-2 text-cyber-secondary hover:text-cyber-primary rounded-lg border border-cyber-primary">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Logs -->
+            <div class="mt-6 bg-cyber-darker p-4 rounded-lg border border-cyber-primary animate-glow-blue">
+                <h3 class="text-cyber-primary font-mono mb-3">
+                    <i class="fas fa-terminal mr-2"></i>Logs Système
+                </h3>
+                <div class="terminal-bg p-3 rounded-lg h-48 overflow-y-auto cyber-scrollbar">
+                    <div class="terminal-text font-mono text-sm space-y-1">
+                        <p>[2023-07-15 14:30:45] SYSTEM: Initialisation du module Kitsune terminée</p>
+                        <p>[2023-07-15 14:31:22] LUCID: Mode d'analyse avancée activé</p>
+                        <p>[2023-07-15 14:32:10] SECURITY: Nouvelle connexion détectée - IP: 192.168.1.45</p>
+                        <p>[2023-07-15 14:33:05] AI: Modèle Vertex chargé avec succès</p>
+                        <p>[2023-07-15 14:35:18] MONITORING: Analyse PCAP démarrée - /var/log/kitsune/pcap/traffic_0715.pcap</p>
+                        <p>[2023-07-15 14:36:42] ALERT: Activité suspecte détectée - Seuil: 0.82</p>
+                        <p>[2023-07-15 14:37:15] SYSTEM: Sauvegarde des paramètres effectuée</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Profile Panel -->
+        <div id="profilePanel" class="hidden p-6">
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-cyber-darker p-6 rounded-lg border border-cyber-secondary animate-glow-pink">
+                    <div class="flex flex-col md:flex-row gap-6">
+                        <!-- Profile Picture -->
+                        <div class="flex-shrink-0">
+                            <div class="relative">
+                                <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Profile" class="profile-pic w-32 h-32 rounded-full object-cover">
+                                <button class="absolute bottom-0 right-0 bg-cyber-secondary text-cyber-dark rounded-full p-2 hover:bg-cyber-primary transition-all">
+                                    <i class="fas fa-camera"></i>
+                                </button>
+                            </div>
+                            <button class="mt-3 w-full py-1 px-3 bg-cyber-dark hover:bg-opacity-70 text-cyber-secondary font-mono text-sm border border-cyber-secondary rounded-lg transition-all">
+                                Changer
+                            </button>
+                        </div>
+
+                        <!-- Profile Form -->
+                        <div class="flex-1 space-y-4">
+                            <!-- Username -->
+                            <div>
+                                <label class="block text-cyber-secondary font-mono mb-1">
+                                    <i class="fas fa-user-tag mr-2"></i>Nom d'utilisateur
+                                </label>
+                                <input type="text" class="w-full bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg" value="admin_kitsune">
+                            </div>
+
+                            <!-- Email -->
+                            <div>
+                                <label class="block text-cyber-secondary font-mono mb-1">
+                                    <i class="fas fa-envelope mr-2"></i>Email
+                                </label>
+                                <input type="email" id="emailInput" class="w-full bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg" value="admin@kitsune-ids.com">
+                                <p id="emailValidation" class="text-xs mt-1 hidden font-mono"></p>
+                            </div>
+
+                            <!-- Role (non-editable) -->
+                            <div>
+                                <label class="block text-cyber-secondary font-mono mb-1">
+                                    <i class="fas fa-user-shield mr-2"></i>Rôle
+                                </label>
+                                <input type="text" readonly class="w-full bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg cursor-not-allowed" value="Administrateur Principal">
+                            </div>
+
+                            <!-- Password -->
+                            <div>
+                                <label class="block text-cyber-secondary font-mono mb-1">
+                                    <i class="fas fa-lock mr-2"></i>Mot de passe
+                                </label>
+                                <input type="password" id="passwordInput" class="w-full bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg" placeholder="••••••••">
+                                <div class="flex items-center mt-1">
+                                    <div id="passwordStrength" class="password-strength weak mr-2"></div>
+                                    <span id="strengthText" class="text-xs font-mono text-cyber-secondary">Faible</span>
+                                </div>
+                            </div>
+
+                            <!-- Confirm Password -->
+                            <div>
+                                <label class="block text-cyber-secondary font-mono mb-1">
+                                    <i class="fas fa-lock mr-2"></i>Confirmer le mot de passe
+                                </label>
+                                <input type="password" id="confirmPassword" class="w-full bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg" placeholder="••••••••">
+                                <p id="passwordMatch" class="text-xs mt-1 hidden font-mono"></p>
+                            </div>
+
+                            <!-- Save Button -->
+                            <div class="pt-2">
+                                <button id="saveProfileBtn" disabled class="w-full py-2 px-4 bg-cyber-dark hover:bg-opacity-70 text-cyber-secondary font-mono border border-cyber-secondary rounded-lg transition-all flex items-center justify-center opacity-50 cursor-not-allowed">
+                                    <i class="fas fa-save mr-2"></i>Enregistrer les modifications
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/setting.js') }}"></script>
+
+       
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion Sécurisée</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+    
+</head>
+<body>
+    <!-- Three.js Canvas Container -->
+    <div id="canvas-container"></div>
+    
+    <div class="login-page">
+        
+        <div class="login-container shadow">
+            
+          <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2 glow-text">ACCÈS SÉCURISÉ</h1>
+            <p class="text-gray-300">Authentification requise</p>
+        </div>
+                
+        <form id="login-form">
+          <div class="mb-3">
+              <input type="text" name="identifier" class="form-control custom-input" placeholder="Nom d'utilisateur / Mail">
+          </div>
+          <div class="mb-3 relative">
+              <input type="password" name="password" id="password-field" class="form-control custom-input pr-10" placeholder="Mot de passe">
+              <!-- Bouton œil/main animé -->
+              <div id="toggle-password" class="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer transition-all duration-300 hover:scale-110">
+                  <i id="eye-icon" class="fas fa-eye-slash text-gray-400 text-lg transition-all duration-300"></i>
+                  <i id="hand-icon" class="fas fa-hand-paper text-gray-400 text-lg absolute inset-0 opacity-0 transition-all duration-300"></i>
+              </div>
+          </div>
+          <div class="form-check mb-3 d-flex align-items-center">
+              <input class="form-check-input me-2" type="checkbox" value="" id="rememberMe">
+              <label class="form-check-label text-white" for="rememberMe">Se souvenir de moi</label>
+          </div>
+          <button type="submit" class="btn btn-warning w-100 fw-bold glow-btn">
+              <i class="fas fa-lock-open mr-2"></i> Authentification
+          </button>
+          <div class="d-flex justify-content-between mt-3 small">
+              <a href="#" class="text-muted">Mot de passe oublié ?</a>
+              <a href="{{ url_for('registration') }}" class="text-warning">Créer un compte</a>
+          </div>
+          <div class="separator my-3"><span>ou</span></div>
+          <div class="d-flex flex-column gap-2">
+              <button class="btn btn-outline-light d-flex align-items-center justify-content-center gap-2">
+                  <i class="fab fa-google"></i> Continuer avec Google
+              </button>
+              <button class="btn btn-outline-light d-flex align-items-center justify-content-center gap-2">
+                  <i class="fab fa-github"></i> Continuer avec GitHub
+              </button>
+          </div>
+      </form>
+        </div>
+      </div>
+    
+    <div class="security-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+        <span>Connexion chiffrée AES-256</span>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Three.js Scene Setup
+            const container = document.getElementById('canvas-container');
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+            
+            // Colors
+            const colors = {
+                yellow: new THREE.Color(0xFFD700),
+                blue: new THREE.Color(0x00FFFF),
+                dark: new THREE.Color(0x0D0D0D)
+            };
+            
+            // Create motherboard-like floor
+            const floorGeometry = new THREE.PlaneGeometry(30, 30, 50, 50);
+            const floorMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x111111,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.3
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -5;
+            scene.add(floor);
+            
+            // Create circuit-like patterns on floor
+            const circuitLines = new THREE.LineSegments(
+                new THREE.EdgesGeometry(floorGeometry),
+                new THREE.LineBasicMaterial({ color: 0x333333, transparent: true, opacity: 0.5 })
+            );
+            circuitLines.rotation.x = -Math.PI / 2;
+            circuitLines.position.y = -4.99;
+            scene.add(circuitLines);
+            
+            // Create glowing dots on floor intersections
+            const dotGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+            const dotMaterial = new THREE.MeshBasicMaterial({ color: 0x00FFFF });
+            
+            for (let x = -15; x <= 15; x += 1) {
+                for (let z = -15; z <= 15; z += 1) {
+                    if (Math.random() > 0.7) {
+                        const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                        dot.position.set(x, -4.9, z);
+                        scene.add(dot);
+                    }
+                }
+            }
+            
+            // Particle system for falling icons
+            const particleCount = 50;
+            const particles = new THREE.Group();
+            scene.add(particles);
+            
+            // Preload icon textures
+            const loader = new THREE.TextureLoader();
+            const iconTextures = [
+                loader.load('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FFD700"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 11.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11V12.99z"/></svg>'), // lock
+                loader.load('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300FFFF"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>'), // home
+                loader.load('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23FFD700"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>'), // user
+                loader.load('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300FFFF"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>') // star
+            ];
+            
+            // Create particles with different icons
+            for (let i = 0; i < particleCount; i++) {
+                const iconIndex = Math.floor(Math.random() * iconTextures.length);
+                const size = 0.2 + Math.random() * 0.3;
+                const color = Math.random() > 0.5 ? colors.yellow : colors.blue;
+                
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: iconTextures[iconIndex],
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const particle = new THREE.Sprite(spriteMaterial);
+                particle.scale.set(size, size, 1);
+                
+                // Random starting position
+                particle.position.x = Math.random() * 30 - 15;
+                particle.position.y = Math.random() * 20 + 10;
+                particle.position.z = Math.random() * 30 - 15;
+                
+                // Random speed
+                particle.userData = {
+                    speed: 0.02 + Math.random() * 0.03,
+                    rotationSpeed: (Math.random() - 0.5) * 0.02,
+                    initialY: particle.position.y,
+                    size: size
+                };
+                
+                particles.add(particle);
+            }
+            
+            // Camera position
+            camera.position.z = 15;
+            camera.position.y = 5;
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // Animate particles
+                particles.children.forEach(particle => {
+                    // Move downward
+                    particle.position.y -= particle.userData.speed;
+                    
+                    // Rotate slightly
+                    particle.rotation.z += particle.userData.rotationSpeed;
+                    
+                    // Fade out as they approach the floor
+                    const distanceToFloor = particle.position.y + 5;
+                    if (distanceToFloor < 5) {
+                        particle.material.opacity = distanceToFloor / 5 * 0.8;
+                    }
+                    
+                    // Reset particles that reach the floor
+                    if (particle.position.y < -5) {
+                        particle.position.y = particle.userData.initialY;
+                        particle.position.x = Math.random() * 30 - 15;
+                        particle.position.z = Math.random() * 30 - 15;
+                        particle.material.opacity = 0.8;
+                        
+                        // Random chance to change icon
+                        if (Math.random() > 0.7) {
+                            const iconIndex = Math.floor(Math.random() * iconTextures.length);
+                            particle.material.map = iconTextures[iconIndex];
+                            particle.material.color = Math.random() > 0.5 ? colors.yellow : colors.blue;
+                            particle.material.needsUpdate = true;
+                        }
+                    }
+                });
+                
+                // Slight rotation of the whole scene for dynamism
+                scene.rotation.y += 0.0005;
+                
+                renderer.render(scene, camera);
+            }
+            
+            animate();
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

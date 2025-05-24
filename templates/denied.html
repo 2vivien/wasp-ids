@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accès Refusé</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        
+        :root {
+            --neon-red: #ff003c;
+            --dark-bg: #0a0a0a;
+        }
+        
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: var(--dark-bg);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+        }
+        
+        .neon-text-red {
+            color: var(--neon-red);
+            text-shadow: 0 0 5px var(--neon-red), 0 0 10px var(--neon-red);
+        }
+        
+        .neon-border-red {
+            border: 1px solid var(--neon-red);
+            box-shadow: 0 0 10px var(--neon-red), inset 0 0 10px var(--neon-red);
+        }
+        
+        .server-room-bg {
+            background: linear-gradient(to bottom, rgba(10, 10, 10, 0.9), rgba(5, 5, 5, 0.95));
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .alert-triangle {
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 35px solid var(--neon-red);
+            position: relative;
+            filter: drop-shadow(0 0 5px var(--neon-red));
+        }
+        
+        .alert-triangle::after {
+            content: "!";
+            position: absolute;
+            top: 10px;
+            left: -7px;
+            color: black;
+            font-weight: bold;
+            font-size: 20px;
+        }
+        
+        .glitch-effect {
+            position: relative;
+        }
+        
+        .glitch-effect::before {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            color: var(--neon-red);
+            animation: glitch 3s infinite linear alternate-reverse;
+            clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+        }
+        
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+        
+        .scan-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(255, 0, 60, 0.8);
+            box-shadow: 0 0 15px rgba(255, 0, 60, 1);
+            animation: scan 4s linear infinite;
+            z-index: 10;
+        }
+        
+        @keyframes scan {
+            0% { top: 0; opacity: 0; }
+            1% { opacity: 1; }
+            99% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+        
+        .binary-code {
+            position: absolute;
+            color: rgba(0, 255, 0, 0.3);
+            font-size: 14px;
+            animation: fall linear infinite;
+            z-index: 1;
+            user-select: none;
+        }
+        
+        @keyframes fall {
+            0% { transform: translateY(-100vh); }
+            100% { transform: translateY(100vh); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 10px var(--neon-red), inset 0 0 10px var(--neon-red); }
+            50% { box-shadow: 0 0 20px var(--neon-red), inset 0 0 20px var(--neon-red); }
+            100% { box-shadow: 0 0 10px var(--neon-red), inset 0 0 10px var(--neon-red); }
+        }
+    </style>
+</head>
+<body class="server-room-bg flex items-center justify-center relative overflow-hidden">
+    <!-- Binary code background -->
+    <div id="binary-container"></div>
+    
+    <!-- Scan line -->
+    <div class="scan-line"></div>
+    
+    <!-- Main content -->
+    <div class="z-20 flex flex-col items-center justify-center p-8 neon-border-red rounded-lg bg-black bg-opacity-90 backdrop-blur-sm transform transition-all duration-300 relative w-11/12 max-w-md pulse">
+        <!-- Alert triangle -->
+        <div class="alert-triangle mb-6"></div>
+        
+        <h1 class="text-4xl font-bold glitch-effect mb-6" data-text="ACCÈS REFUSÉ">ACCÈS REFUSÉ</h1>
+        
+        <p class="text-center mb-8 neon-text-red">
+            Désolé, vous n'avez pas les permissions nécessaires pour accéder à cette page. <br><br>
+            <span>Seuls les administrateurs peuvent accéder à cette section.</span>
+        </p>
+        
+        <!-- Return button -->
+        <button onclick="window.history.back()" class="px-6 py-2 neon-border-red rounded bg-black bg-opacity-70 hover:bg-opacity-90 transition-all duration-300 flex items-center">
+            <i class="fas fa-arrow-left mr-2"><a href="{{ url_for('dashboard') }}"> Retour au tableau de bord</a></i>
+        </button>
+    </div>
+    
+    <script>
+        // Generate binary code rain
+        function createBinaryRain() {
+            const container = document.getElementById('binary-container');
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            const columns = Math.floor(width / 20);
+            
+            for (let i = 0; i < columns; i++) {
+                const binary = document.createElement('div');
+                binary.className = 'binary-code';
+                binary.style.left = `${(i * 20) + (Math.random() * 20)}px`;
+                binary.style.animationDuration = `${5 + Math.random() * 10}s`;
+                binary.style.animationDelay = `${Math.random() * 5}s`;
+                
+                // Generate random binary string
+                let binaryString = '';
+                const length = 20 + Math.floor(Math.random() * 30);
+                for (let j = 0; j < length; j++) {
+                    binaryString += Math.random() > 0.5 ? '1' : '0';
+                    if (j % 5 === 0 && j !== 0) binaryString += ' ';
+                }
+                
+                binary.textContent = binaryString;
+                container.appendChild(binary);
+            }
+        }
+        
+        // Add random scan lines
+        setInterval(() => {
+            const scan = document.createElement('div');
+            scan.className = 'scan-line';
+            scan.style.animationDuration = `${3 + Math.random() * 4}s`;
+            scan.style.top = `${Math.random() * 100}%`;
+            document.body.appendChild(scan);
+            
+            setTimeout(() => {
+                scan.remove();
+            }, 4000);
+        }, 2000);
+        
+        // Add slight glitch effect to main container
+        setInterval(() => {
+            const mainContainer = document.querySelector('.neon-border-red');
+            if (Math.random() > 0.7) {
+                mainContainer.style.transform = 'translateX(' + (Math.random() * 4 - 2) + 'px)';
+                
+                setTimeout(() => {
+                    mainContainer.style.transform = 'translateX(0)';
+                }, 100);
+            }
+        }, 3000);
+        
+        // Initialize binary rain
+        createBinaryRain();
+        
+        // Regenerate binary rain on resize
+        window.addEventListener('resize', () => {
+            document.getElementById('binary-container').innerHTML = '';
+            createBinaryRain();
+        });
+    </script>
+</body>
+</html>

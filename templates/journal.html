@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wasp - Tableau de bord des logs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/journal.css') }}">
+    
+</head>
+<body class="min-h-screen p-6 bg-cyber-darker">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-6">
+            <button onclick="window.history.back()" class="flex items-center text-cyber-primary hover:text-cyber-secondary transition-all animate-glow">
+                <i class="fas fa-arrow-left mr-2 text-xl"></i>
+                <a href="{{ url_for('dashboard') }}"><span class="font-mono">Retour au tableau de bord</span></a>
+            </button>
+            <div class="flex space-x-4">
+                <button id="refreshBtn" class="px-4 py-2 bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono rounded-lg hover:bg-opacity-70 transition-all animate-glow-blue">
+                    <i class="fas fa-sync-alt mr-2"></i>🔄 Actualiser
+                </button>
+                <button id="exportBtn" class="px-4 py-2 bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono rounded-lg hover:bg-opacity-70 transition-all animate-glow-blue">
+                    <i class="fas fa-file-export mr-2"></i>Exporter CSV
+                </button>
+            </div>
+        </div>
+
+        <!-- System Logs Panel -->
+        <div class="mb-6 rounded-lg overflow-hidden">
+            <div class="panel-header bg-cyber-panel p-4 border border-cyber-primary flex justify-between items-center animate-glow-blue">
+                <div class="flex items-center">
+                    <i class="fas fa-terminal mr-3 text-cyber-primary"></i>
+                    <h2 class="text-xl font-mono text-cyber-primary">Système</h2>
+                </div>
+                <button class="toggle-panel text-cyber-primary">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="panel-content bg-cyber-panel border border-t-0 border-cyber-primary">
+                <div class="p-4">
+                    <!-- Filters -->
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <button class="filter-btn px-3 py-1 rounded-full border border-cyber-primary text-cyber-primary font-mono text-sm hover:bg-cyber-dark transition-all" data-filter="all">
+                            Tous
+                        </button>
+                        <button class="filter-btn px-3 py-1 rounded-full border border-cyber-primary text-cyber-primary font-mono text-sm hover:bg-cyber-dark transition-all" data-filter="INFO">
+                            INFO
+                        </button>
+                        <button class="filter-btn px-3 py-1 rounded-full border border-yellow-500 text-yellow-500 font-mono text-sm hover:bg-cyber-dark transition-all" data-filter="WARNING">
+                            WARNING
+                        </button>
+                        <button class="filter-btn px-3 py-1 rounded-full border border-red-500 text-red-500 font-mono text-sm hover:bg-cyber-dark transition-all" data-filter="ERROR">
+                            ERROR
+                        </button>
+                        <select class="ml-auto bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono p-1 rounded-lg text-sm">
+                            <option>Tous les modèles</option>
+                            <option>Kitsune</option>
+                            <option>LUCID</option>
+                            <option>Vertex AI</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Log Viewer -->
+                    <div class="terminal-bg p-4 rounded-lg h-64 overflow-y-auto cyber-scrollbar">
+                        <div id="systemLogs" class="terminal-text font-mono text-sm space-y-2">
+                            <!-- Log entries will be added here by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Activity Panel -->
+        <div class="mb-6 rounded-lg overflow-hidden">
+            <div class="panel-header bg-cyber-panel p-4 border border-cyber-secondary flex justify-between items-center animate-glow-pink">
+                <div class="flex items-center">
+                    <i class="fas fa-users mr-3 text-cyber-secondary"></i>
+                    <h2 class="text-xl font-mono text-cyber-secondary">Utilisateurs</h2>
+                </div>
+                <button class="toggle-panel text-cyber-secondary">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="panel-content bg-cyber-panel border border-t-0 border-cyber-secondary">
+                <div class="p-4">
+                    <!-- Search and Filters -->
+                    <div class="flex flex-wrap gap-4 mb-4">
+                        <div class="relative flex-1">
+                            <input type="text" placeholder="Rechercher utilisateur..." class="w-full bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg pl-10">
+                            <i class="fas fa-search absolute left-3 top-3 text-cyber-secondary"></i>
+                        </div>
+                        <div class="flex gap-2">
+                            <input type="date" class="bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg">
+                            <span class="self-center text-cyber-secondary font-mono">à</span>
+                            <input type="date" class="bg-cyber-dark border border-cyber-secondary text-cyber-primary font-mono p-2 rounded-lg">
+                        </div>
+                    </div>
+                    
+                    <!-- User Activity Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="userActivity">
+                        <!-- Cards will be added here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Panel -->
+        <div class="rounded-lg overflow-hidden">
+            <div class="panel-header bg-cyber-panel p-4 border border-cyber-primary flex justify-between items-center animate-glow-blue">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-line mr-3 text-cyber-primary"></i>
+                    <h2 class="text-xl font-mono text-cyber-primary">Analyses</h2>
+                </div>
+                <button class="toggle-panel text-cyber-primary">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="panel-content bg-cyber-panel border border-t-0 border-cyber-primary">
+                <div class="p-4">
+                    <!-- Filters -->
+                    <div class="flex flex-wrap gap-4 mb-4 items-center">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="showFailedOnly" class="sr-only toggle-checkbox">
+                            <div class="toggle-label w-11 h-6 bg-cyber-dark rounded-full border border-cyber-primary"></div>
+                            <div class="dot absolute left-1 top-1 bg-cyber-primary w-4 h-4 rounded-full transition transform translate-x-0"></div>
+                            <span class="ml-3 text-sm font-mono text-cyber-primary">Afficher uniquement les échecs</span>
+                        </label>
+                        <div class="ml-auto flex gap-2">
+                            <select class="bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono p-1 rounded-lg text-sm">
+                                <option>Tous les modèles</option>
+                                <option>Kitsune</option>
+                                <option>LUCID</option>
+                                <option>Vertex AI</option>
+                            </select>
+                            <select class="bg-cyber-dark border border-cyber-primary text-cyber-primary font-mono p-1 rounded-lg text-sm">
+                                <option>Tous les verdicts</option>
+                                <option>Clean</option>
+                                <option>Suspect</option>
+                                <option>Malicious</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Analysis Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm font-mono">
+                            <thead class="text-left text-cyber-primary border-b border-cyber-primary">
+                                <tr>
+                                    <th class="pb-2">Fichier</th>
+                                    <th class="pb-2">Modèles</th>
+                                    <th class="pb-2">Score</th>
+                                    <th class="pb-2">Durée</th>
+                                    <th class="pb-2">Verdict</th>
+                                    <th class="pb-2">Statut</th>
+                                    <th class="pb-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="analysisTable">
+                                <!-- Table rows will be added here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/journal.js') }}"></script>
+</body>
+</html>

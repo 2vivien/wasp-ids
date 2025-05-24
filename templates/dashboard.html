@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>WASP - IDS Dashboard</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    </head>
+    <body
+        class="bg-gray-900 text-gray-200 font-sans overflow-hidden">
+        <!-- Hexagonal background pattern -->
+        <div class="hexagon-bg fixed inset-0 z-0"></div>
+
+        <!-- Floating particles -->
+        <div id="particles-container" class="fixed inset-0 z-0 overflow-hidden"></div>
+
+        <div
+            class="flex h-screen relative z-10">
+            <!-- Sidebar -->
+            <div class="w-64 bg-gray-800/80 backdrop-blur-sm border-r border-gray-700/50 flex flex-col">
+                <div class="p-4 border-b border-gray-700/50">
+                    <h1 class="text-2xl font-bold text-green-400 flex items-center neon-text justify-center">
+                        <img src="{{ url_for('static', filename='images/logowasp.png') }}" alt="Logo" alt="Logo" style="width: 120px; height: 50px;">
+
+                    </h1>
+                    
+                    <p class="text-xs text-gray-400 text-center">Powered by Kitsune, LUCID & Vertex</p>
+
+                </div>
+
+                <nav class="flex-1 p-4 space-y-2">
+                    <a href="#" class="sidebar-item active flex items-center p-3 rounded-lg">
+                        <i class="fas fa-tachometer-alt mr-3 text-green-400"></i>
+                        <span>Tableau de bord</span>
+                    </a>
+                    <a href="{{ url_for('alert') }}" class="sidebar-item flex items-center p-3 rounded-lg">
+                        <i class="fas fa-bell mr-3 text-red-400"></i>
+                        <span>Alertes</span>
+                        <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full blink">5</span>
+                    </a>
+                    <a href="{{ url_for('journal') }}" class="sidebar-item flex items-center p-3 rounded-lg">
+                        <i class="fas fa-scroll mr-3 text-blue-400"></i>
+                        <span>Journaux</span>
+                    </a>
+                    <a href="{{ url_for('pcap') }}" class="sidebar-item flex items-center p-3 rounded-lg">
+                        <i class="fas fa-upload mr-3 text-teal-400"></i>
+                        <span>Fichiers PCAP</span>
+                    </a>
+                    <a href="{{ url_for('setting') }}" class="sidebar-item flex items-center p-3 rounded-lg">
+                        <i class="fas fa-cog mr-3 text-yellow-400"></i>
+                        <span>Paramètres</span>
+                    </a>
+                    <a href="{{ url_for('user') }}" class="sidebar-item flex items-center p-3 rounded-lg">
+                        <i class="fas fa-users mr-3 text-purple-400"></i>
+                        <span>Utilisateurs</span>
+                    </a>
+                </nav>
+
+                <!-- Profil admin avec menu déroulant -->
+                <div class="p-4 border-t border-gray-700/50 relative">
+                    <div id="profile-trigger" class="flex items-center cursor-pointer group">
+                        <div class="w-10 h-10 rounded-full bg-gray-700/50 flex items-center justify-center border border-green-400/30 transition-transform group-hover:scale-105">
+                            <i class="fas fa-user-astronaut text-green-400"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-white">{{ username }}</p>
+                            <p class="text-xs text-gray-400">
+                                {% if role == 'admin' %}
+                                    Administrateur système
+                                {% else %}
+                                    Analyste de sécurité
+                                {% endif %}
+                            </p>
+                        </div>
+                        <i class="fas fa-chevron-down ml-auto text-gray-400 transition-transform duration-300" id="chevron-icon"></i>
+                    </div>
+                  
+                    <!-- Menu caché -->
+                    <div id="profile-menu" class="absolute left-0 right-0 bottom-full mb-2 w-full bg-gray-800 border border-gray-600 rounded-xl shadow-lg p-2 space-y-2 hidden z-50 transition-all duration-300 origin-top">
+                        <a href="{{ url_for('setting') }}" class="flex items-center px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/50 rounded-lg transition">
+                            <i class="fas fa-cog mr-2 text-green-400"></i> Paramètres
+                        </a>
+                        <a href="/index" class="flex items-center px-4 py-2 text-sm text-gray-200 hover:bg-gray-700/50 rounded-lg transition">
+                            <i class="fas fa-envelope mr-2 text-green-400"></i> Contacter le concepteur
+                        </a>
+                        <a href="{{ url_for('logout') }}" class="flex items-center px-4 py-2 text-sm text-red-400 hover:bg-red-900/50 rounded-lg transition">
+                            <i class="fas fa-sign-out-alt mr-2"></i> Déconnexion
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content -->
+            <div
+                class="flex-1 flex flex-col overflow-hidden">
+                <!-- Top navigation -->
+                <header class="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700/50 p-4 flex items-center justify-between">
+                    <div class="flex items-center">
+                        <h2 class="text-xl font-semibold neon-text">Tableau de bord IDS</h2>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <i class="fas fa-search text-gray-400"></i>
+                            </div>
+                            <input type="text" class="bg-gray-700/50 text-gray-200 rounded-lg pl-10 pr-4 py-2 w-64 focus:outline-none search-glow border border-gray-600 focus:border-green-400" placeholder="Rechercher...">
+                        </div>
+
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 rounded-full bg-gray-700/50 flex items-center justify-center border border-green-400/30">
+                                <i class="fas fa-user text-green-400"></i>
+                            </div>
+                            <span class="text-sm">{{ username }}</span>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Filters -->
+                <div class="bg-gray-800/50 p-4 border-b border-gray-700/30">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">Modèle</label>
+                            <select class="bg-gray-700/50 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 border border-gray-600">
+                                <option>Tous les modèles</option>
+                                <option>Kitsune</option>
+                                <option>LUCID</option>
+                                <option>Vertex AI</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">IP</label>
+                            <select class="bg-gray-700/50 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 border border-gray-600">
+                                <option>Toutes les IP</option>
+                                <option>192.168.1.1</option>
+                                <option>10.0.0.5</option>
+                                <option>172.16.0.2</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-xs text-gray-400 block mb-1">Période</label>
+                            <select class="bg-gray-700/50 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-green-400 border border-gray-600">
+                                <option>24 dernières heures</option>
+                                <option>7 derniers jours</option>
+                                <option>30 derniers jours</option>
+                                <option>Personnalisé...</option>
+                            </select>
+                        </div>
+
+                        <button class="ml-auto bg-green-500/20 text-green-400 px-4 py-2 rounded-lg text-sm border border-green-400/30 hover:bg-green-500/30 transition">
+                            <i class="fas fa-sync-alt mr-2"></i>
+                            Actualiser
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dashboard content -->
+                <main
+                    class="flex-1 overflow-y-auto p-6">
+                    <!-- Attack activity and system status -->
+                    <div
+                        class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <!-- System status -->
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border backdrop-blur-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold flex items-center">
+                                    <i class="fas fa-shield-virus mr-2 text-green-400"></i>
+                                    État du système IDS
+                                </h3>
+                                <span class="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">Live</span>
+                            </div>
+                            <div class="flex items-center justify-center">
+                                <div class="relative">
+                                    <svg class="w-40 h-40" viewbox="0 0 100 100">
+                                        <circle cx="50" cy="50" r="45" fill="none" stroke="#2d3748" stroke-width="8"/>
+                                        <circle class="progress-ring-circle" cx="50" cy="50" r="45" fill="none" stroke="#4ade80" stroke-width="8" stroke-linecap="round" stroke-dashoffset="70.75"/>
+                                        <text x="50" y="50" text-anchor="middle" dy=".3em" class="text-2xl font-bold fill-green-400">85%</text>
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <div class="w-24 h-24 rounded-full bg-green-500/10 animate-pulse"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 text-center">
+                                <p class="text-green-400 font-medium">
+                                    <i class="fas fa-check-circle mr-1"></i>
+                                    Système opérationnel
+                                </p>
+                                <p class="text-xs text-gray-400 mt-1">Dernière analyse:
+                                    <span class="text-green-400">il y a 15s</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Attack activity -->
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border lg:col-span-2 backdrop-blur-sm">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-semibold flex items-center">
+                                    <i class="fas fa-chart-line mr-2 text-green-400"></i>
+                                    Activité des attaques (24h)
+                                </h3>
+                                <div class="flex space-x-2">
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full bg-red-500 mr-1"></div>
+                                        <span class="text-xs">Anomalies</span>
+                                    </div>
+                                    <div class="flex items-center">
+                                        <div class="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                                        <span class="text-xs">Trafic normal</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="h-64">
+                                <canvas id="attackChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Model performance section -->
+                    <div
+                        class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- Kitsune -->
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border model-card backdrop-blur-sm">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold flex items-center">
+                                        <i class="fas fa-fox mr-2 text-blue-400"></i>
+                                        Kitsune
+                                    </h3>
+                                    <p class="text-xs text-gray-400">Anomaly Detection</p>
+                                </div>
+                                <span class="text-xs px-2 py-1 rounded-full bg-blue-500/20 text-blue-400">Actif</span>
+                            </div>
+                            <div class="h-40 mb-4">
+                                <canvas id="kitsuneChart"></canvas>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-xs text-gray-400">Score moyen</p>
+                                    <p class="text-xl font-bold text-blue-400">0.87</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-400">Dernière alerte</p>
+                                    <p class="text-sm text-red-400">il y a 2m</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- LUCID -->
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border model-card backdrop-blur-sm">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold flex items-center">
+                                        <i class="fas fa-eye mr-2 text-purple-400"></i>
+                                        LUCID
+                                    </h3>
+                                    <p class="text-xs text-gray-400">Zero-Day Detection</p>
+                                </div>
+                                <span class="text-xs px-2 py-1 rounded-full bg-purple-500/20 text-purple-400">Actif</span>
+                            </div>
+                            <div class="h-40 mb-4">
+                                <canvas id="lucidChart"></canvas>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-xs text-gray-400">Détections</p>
+                                    <p class="text-xl font-bold text-purple-400">3</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-400">Dernière alerte</p>
+                                    <p class="text-sm text-red-400">il y a 8m</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vertex AI -->
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border model-card backdrop-blur-sm">
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 class="text-lg font-semibold flex items-center">
+                                        <i class="fas fa-robot mr-2 text-yellow-400"></i>
+                                        Vertex AI
+                                    </h3>
+                                    <p class="text-xs text-gray-400">Threat Classification</p>
+                                </div>
+                                <span class="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400">Actif</span>
+                            </div>
+                            <div class="h-40 mb-4">
+                                <canvas id="vertexChart"></canvas>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="text-xs text-gray-400">Précision</p>
+                                    <p class="text-xl font-bold text-yellow-400">92%</p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-gray-400">Dernière alerte</p>
+                                    <p class="text-sm text-red-400">il y a 15m</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Critical alerts -->
+                    <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 alert-glow mb-6 backdrop-blur-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold flex items-center">
+                                <i class="fas fa-exclamation-triangle mr-2 text-red-400 blink"></i>
+                                Alertes critiques 🚨
+                            </h3>
+                            <button class="text-xs text-red-400 hover:text-red-300 transition">
+                                <i class="fas fa-ellipsis-h"></i>
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-left text-gray-400 border-b border-gray-700/50">
+                                        <th class="pb-2">Timestamp</th>
+                                        <th class="pb-2">IP Source</th>
+                                        <th class="pb-2">Modèle</th>
+                                        <th class="pb-2">Type</th>
+                                        <th class="pb-2">Score de menace</th>
+                                        <th class="pb-2">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-gray-700/30 hover:bg-gray-800/50 transition">
+                                        <td class="py-3">2023-06-15 14:23:45</td>
+                                        <td class="text-red-400">192.168.1.45</td>
+                                        <td>Kitsune</td>
+                                        <td>DDoS</td>
+                                        <td>
+                                            <div class="threat-score">
+                                                <span class="text-red-400">0.98</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="text-green-400 hover:text-green-300 transition">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="border-b border-gray-700/30 hover:bg-gray-800/50 transition">
+                                        <td class="py-3">2023-06-15 13:56:12</td>
+                                        <td class="text-red-400">45.33.12.78</td>
+                                        <td>LUCID</td>
+                                        <td>Zero-Day</td>
+                                        <td>
+                                            <div class="threat-score">
+                                                <span class="text-red-400">0.95</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="text-green-400 hover:text-green-300 transition">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="border-b border-gray-700/30 hover:bg-gray-800/50 transition">
+                                        <td class="py-3">2023-06-15 12:34:56</td>
+                                        <td class="text-red-400">10.0.0.23</td>
+                                        <td>Vertex AI</td>
+                                        <td>Brute Force</td>
+                                        <td>
+                                            <div class="threat-score">
+                                                <span class="text-orange-400">0.87</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="text-green-400 hover:text-green-300 transition">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <tr class="hover:bg-gray-800/50 transition">
+                                        <td class="py-3">2023-06-15 11:45:23</td>
+                                        <td class="text-red-400">172.16.0.42</td>
+                                        <td>Kitsune</td>
+                                        <td>Port Scan</td>
+                                        <td>
+                                            <div class="threat-score">
+                                                <span class="text-orange-400">0.82</span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="text-green-400 hover:text-green-300 transition">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Performance metrics -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border backdrop-blur-sm">
+                            <h3 class="text-lg font-semibold mb-4 flex items-center">
+                                <i class="fas fa-bullseye mr-2 text-green-400"></i>
+                                Précision
+                            </h3>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-2xl font-bold text-green-400">92%</span>
+                                <span class="text-xs text-gray-400">+2% vs hier</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full" style="width: 92%"></div>
+                            </div>
+                            <p class="text-center text-xs text-gray-400 mt-2">Taux de détection des vraies menaces</p>
+                        </div>
+
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border backdrop-blur-sm">
+                            <h3 class="text-lg font-semibold mb-4 flex items-center">
+                                <i class="fas fa-memory mr-2 text-green-400"></i>
+                                Rappel
+                            </h3>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-2xl font-bold text-green-400">88%</span>
+                                <span class="text-xs text-gray-400">+1% vs hier</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full" style="width: 88%"></div>
+                            </div>
+                            <p class="text-center text-xs text-gray-400 mt-2">Taux de détection des attaques</p>
+                        </div>
+
+                        <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 glow-border backdrop-blur-sm">
+                            <h3 class="text-lg font-semibold mb-4 flex items-center">
+                                <i class="fas fa-chart-pie mr-2 text-green-400"></i>
+                                F1-score
+                            </h3>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-2xl font-bold text-green-400">90%</span>
+                                <span class="text-xs text-gray-400">+1.5% vs hier</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full" style="width: 90%"></div>
+                            </div>
+                            <p class="text-center text-xs text-gray-400 mt-2">Moyenne harmonique</p>
+                        </div>
+                    </div>
+                </main>
+            </div>
+        </div>
+
+        <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+        <script>
+            
+            document.addEventListener("DOMContentLoaded", function () {
+            const profileTrigger = document.getElementById("profile-trigger");
+            const profileMenu = document.getElementById("profile-menu");
+            const chevronIcon = document.getElementById("chevron-icon");
+
+            profileTrigger.addEventListener("click", function (e) {
+                e.stopPropagation(); // Empêche la propagation pour ne pas déclencher le document.click immédiatement
+                profileMenu.classList.toggle("hidden");
+                chevronIcon.classList.toggle("rotate-180");
+            });
+
+            // Refermer le menu si on clique ailleurs
+            document.addEventListener("click", function () {
+                profileMenu.classList.add("hidden");
+                chevronIcon.classList.remove("rotate-180");
+            });
+
+            // Empêcher la fermeture quand on clique dans le menu
+            profileMenu.addEventListener("click", function (e) {
+                e.stopPropagation();
+            });
+        });
+</script>
+     
+    </body>
+</html>

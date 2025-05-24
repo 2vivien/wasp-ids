@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Course Nocturne Immersive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Arial', sans-serif;
+            touch-action: none;
+        }
+        #loading-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #000000, #0a0a2a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            flex-direction: column;
+            transition: opacity 1s ease-out;
+        }
+        .progress-container {
+            width: 300px;
+            margin-top: 30px;
+        }
+        .progress-text {
+            text-align: center;
+            margin-bottom: 8px;
+            color: #ffcc00;
+            font-weight: bold;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background: linear-gradient(to right, #ffcc00, #ff9900);
+            width: 0%;
+            transition: width 0.3s;
+            border-radius: 5px;
+        }
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 204, 0, 0.3);
+        }
+        .controls-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .key {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 20px;
+            transition: all 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            user-select: none;
+        }
+        .key.active {
+            background: #ffcc00;
+            color: #000;
+            transform: scale(0.95);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .title {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, #ffcc00, #ff9900);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 1.1rem;
+            margin-bottom: 30px;
+        }
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <h1 class="title">COURSE NOCTURNE</h1>
+        <p class="subtitle">Contrôlez la voiture avec les touches directionnelles</p>
+        <div class="progress-container">
+            <div class="progress-text" id="progress-text">0%</div>
+            <div class="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="controls-row">
+            <div class="key" id="up-key">↑</div>
+        </div>
+        <div class="controls-row">
+            <div class="key" id="left-key">←</div>
+            <div class="key" id="down-key">↓</div>
+            <div class="key" id="right-key">→</div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script>
+        // Simulation de chargement
+        let progress = 0;
+        const progressBar = document.getElementById('progress');
+        const progressText = document.getElementById('progress-text');
+        const loadingScreen = document.getElementById('loading-screen');
+        
+        const loadAssets = () => {
+            return new Promise((resolve) => {
+                const interval = setInterval(() => {
+                    progress += Math.random() * 5;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        resolve();
+                    }
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${Math.floor(progress)}%`;
+                }, 100);
+            });
+        };
+
+        // Initialisation de Three.js
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0a0a2a, 0.002);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 15);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setClearColor(0x000000, 0);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Lumière ambiante (nuit)
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+        scene.add(ambientLight);
+
+        // Lumière directionnelle (lune)
+        const moonLight = new THREE.DirectionalLight(0xcdd7f7, 0.2);
+        moonLight.position.set(10, 20, 10);
+        moonLight.castShadow = true;
+        moonLight.shadow.mapSize.width = 1024;
+        moonLight.shadow.mapSize.height = 1024;
+        scene.add(moonLight);
+
+        // Lumière des phares
+        const carLight = new THREE.SpotLight(0xffcc00, 2, 50, Math.PI / 4, 0.5);
+        carLight.position.set(0, 2, 0);
+        carLight.castShadow = true;
+        carLight.shadow.mapSize.width = 1024;
+        carLight.shadow.mapSize.height = 1024;
+        carLight.shadow.camera.near = 0.5;
+        carLight.shadow.camera.far = 50;
+        scene.add(carLight);
+
+        // Création de la route (droite)
+        const roadWidth = 10;
+        const roadLength = 200;
+        const roadGeometry = new THREE.PlaneGeometry(roadWidth, roadLength, 10, 100);
+        
+        const roadMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x333333,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2;
+        road.position.z = -roadLength / 2;
+        road.receiveShadow = true;
+        scene.add(road);
+
+        // Marquages sur la route
+        const lineGeometry = new THREE.PlaneGeometry(1.5, 0.2);
+        const lineMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.2
+        });
+        
+        for (let z = -roadLength/2; z < roadLength/2; z += 5) {
+            const line = new THREE.Mesh(lineGeometry, lineMaterial);
+            line.rotation.x = -Math.PI / 2;
+            line.position.set(0, -0.9, z);
+            line.receiveShadow = true;
+            scene.add(line);
+        }
+
+        // Création de la voiture
+        const carGroup = new THREE.Group();
+        
+        // Corps de la voiture
+        const carBodyGeometry = new THREE.BoxGeometry(2, 1, 3.5);
+        const carBodyMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffcc00,
+            metalness: 0.5,
+            roughness: 0.4
+        });
+        const carBody = new THREE.Mesh(carBodyGeometry, carBodyMaterial);
+        carBody.position.y = 0.5;
+        carBody.castShadow = true;
+        carGroup.add(carBody);
+        
+        // Capot avant
+        const hoodGeometry = new THREE.BoxGeometry(2, 0.5, 1.5);
+        const hood = new THREE.Mesh(hoodGeometry, carBodyMaterial);
+        hood.position.set(0, 0.75, 1.5);
+        hood.castShadow = true;
+        carGroup.add(hood);
+        
+        // Vitres
+        const carWindowGeometry = new THREE.BoxGeometry(1.8, 0.6, 2.8);
+        const carWindowMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x111111,
+            transparent: true,
+            opacity: 0.6,
+            metalness: 0.9,
+            roughness: 0.1
+        });
+        const carWindow = new THREE.Mesh(carWindowGeometry, carWindowMaterial);
+        carWindow.position.y = 1.1;
+        carGroup.add(carWindow);
+        
+        // Roues
+        const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 32);
+        const wheelMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x222222,
+            roughness: 0.7,
+            metalness: 0.3
+        });
+        
+        const wheelFL = new THREE.Mesh(wheelGeometry, wheelMaterial);
+        wheelFL.rotation.z = Math.PI / 2;
+        wheelFL.position.set(-1, 0, 1.5);
+        wheelFL.castShadow = true;
+        carGroup.add(wheelFL);
+        
+        const wheelFR = new THREE.Mesh(wheelGeometry, wheelMaterial);
+        wheelFR.rotation.z = Math.PI / 2;
+        wheelFR.position.set(1, 0, 1.5);
+        wheelFR.castShadow = true;
+        carGroup.add(wheelFR);
+        
+        const wheelRL = new THREE.Mesh(wheelGeometry, wheelMaterial);
+        wheelRL.rotation.z = Math.PI / 2;
+        wheelRL.position.set(-1, 0, -1.5);
+        wheelRL.castShadow = true;
+        carGroup.add(wheelRL);
+        
+        const wheelRR = new THREE.Mesh(wheelGeometry, wheelMaterial);
+        wheelRR.rotation.z = Math.PI / 2;
+        wheelRR.position.set(1, 0, -1.5);
+        wheelRR.castShadow = true;
+        carGroup.add(wheelRR);
+        
+        // Spoiler arrière
+        const spoilerGeometry = new THREE.BoxGeometry(1.5, 0.2, 0.5);
+        const spoiler = new THREE.Mesh(spoilerGeometry, carBodyMaterial);
+        spoiler.position.set(0, 0.8, -1.8);
+        spoiler.castShadow = true;
+        carGroup.add(spoiler);
+        
+        scene.add(carGroup);
+        carLight.target = carGroup;
+
+        // Création de la porte futuriste
+        const doorGroup = new THREE.Group();
+        doorGroup.position.z = -roadLength + 20;
+        
+        const doorGeometry = new THREE.BoxGeometry(8, 12, 0.5);
+        const doorMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffcc00,
+            emissive: 0xffaa00,
+            emissiveIntensity: 0.5,
+            metalness: 0.9,
+            roughness: 0.1,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const leftDoor = new THREE.Mesh(doorGeometry, doorMaterial);
+        leftDoor.position.x = -4;
+        leftDoor.castShadow = true;
+        doorGroup.add(leftDoor);
+        
+        const rightDoor = new THREE.Mesh(doorGeometry, doorMaterial);
+        rightDoor.position.x = 4;
+        rightDoor.castShadow = true;
+        doorGroup.add(rightDoor);
+        
+        // Ajout de détails aux portes
+        const doorDetailGeometry = new THREE.BoxGeometry(7.8, 0.3, 0.6);
+        const doorDetailMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xff9900,
+            emissive: 0xff6600,
+            emissiveIntensity: 0.7
+        });
+        
+        for (let y = -5; y <= 5; y += 2) {
+            const detailLeft = new THREE.Mesh(doorDetailGeometry, doorDetailMaterial);
+            detailLeft.position.set(-4, y, 0);
+            doorGroup.add(detailLeft);
+            
+            const detailRight = new THREE.Mesh(doorDetailGeometry, doorDetailMaterial);
+            detailRight.position.set(4, y, 0);
+            doorGroup.add(detailRight);
+        }
+        
+        scene.add(doorGroup);
+
+        // Ajout d'étoiles
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.2,
+            transparent: true,
+            opacity: 0.8,
+            sizeAttenuation: true
+        });
+
+        const starsVertices = [];
+        for (let i = 0; i < 10000; i++) {
+            const x = (Math.random() - 0.5) * 2000;
+            const y = (Math.random() - 0.5) * 2000;
+            const z = (Math.random() - 0.5) * 2000;
+            starsVertices.push(x, y, z);
+        }
+
+        starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices, 3));
+        const stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+
+        // Effet de neige (flocons tombant du ciel)
+        const snowGeometry = new THREE.BufferGeometry();
+        const snowMaterial = new THREE.PointsMaterial({
+            color: 0xffffff,
+            size: 0.15,
+            transparent: true,
+            opacity: 0.8,
+            sizeAttenuation: true
+        });
+
+        const snowVertices = [];
+        for (let i = 0; i < 2000; i++) {
+            const x = (Math.random() - 0.5) * 200;
+            const y = Math.random() * 100 + 20;
+            const z = (Math.random() - 0.5) * 200;
+            snowVertices.push(x, y, z);
+        }
+
+        snowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(snowVertices, 3));
+        const snow = new THREE.Points(snowGeometry, snowMaterial);
+        scene.add(snow);
+
+        // Animation de la neige
+        const snowPositions = snowGeometry.attributes.position;
+        
+        function animateSnow() {
+            for (let i = 0; i < snowPositions.count; i++) {
+                const y = snowPositions.getY(i);
+                snowPositions.setY(i, y - 0.1 - Math.random() * 0.05);
+                snowPositions.setX(i, snowPositions.getX(i) + (Math.random() - 0.5) * 0.05);
+                snowPositions.setZ(i, snowPositions.getZ(i) + (Math.random() - 0.5) * 0.05);
+                
+                if (y < -5) {
+                    snowPositions.setY(i, Math.random() * 50 + 50);
+                    snowPositions.setX(i, (Math.random() - 0.5) * 200);
+                    snowPositions.setZ(i, (Math.random() - 0.5) * 200);
+                }
+            }
+            snowPositions.needsUpdate = true;
+        }
+
+        // Contrôles de la voiture (4 directions)
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+
+        window.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.code)) {
+                keys[e.code] = true;
+                document.getElementById(e.code.replace('Arrow', '').toLowerCase() + '-key').classList.add('active');
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.code)) {
+                keys[e.code] = false;
+                document.getElementById(e.code.replace('Arrow', '').toLowerCase() + '-key').classList.remove('active');
+            }
+        });
+
+        // Contrôles tactiles pour mobile
+        const controlKeys = ['up', 'down', 'left', 'right'];
+        
+        controlKeys.forEach(key => {
+            const element = document.getElementById(key + '-key');
+            element.addEventListener('touchstart', () => {
+                keys['Arrow' + key.charAt(0).toUpperCase() + key.slice(1)] = true;
+                element.classList.add('active');
+            }, { passive: true });
+            
+            element.addEventListener('touchend', () => {
+                keys['Arrow' + key.charAt(0).toUpperCase() + key.slice(1)] = false;
+                element.classList.remove('active');
+            }, { passive: true });
+        });
+
+        // Variables pour le mouvement de la voiture
+        let carPositionX = 0;
+        let carPositionZ = 0;
+        let carRotationY = 0;
+        const maxRotation = Math.PI / 8;
+        const rotationSpeed = 0.05;
+        const moveSpeed = 0.1;
+        const maxPositionX = 4;
+        
+        let carSpeed = 0;
+        const maxSpeedForward = 0.5;
+        const maxSpeedBackward = 0.2;
+        const acceleration = 0.005;
+        const deceleration = 0.01;
+
+        // Animation
+        let doorOpen = false;
+        let doorOpening = false;
+        
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Contrôle de la voiture
+            if (keys.ArrowLeft) {
+                carRotationY = Math.min(carRotationY + rotationSpeed, maxRotation);
+                carPositionX = Math.max(carPositionX - moveSpeed, -maxPositionX);
+            } else if (keys.ArrowRight) {
+                carRotationY = Math.max(carRotationY - rotationSpeed, -maxRotation);
+                carPositionX = Math.min(carPositionX + moveSpeed, maxPositionX);
+            } else {
+                // Retour progressif à la position neutre
+                if (carRotationY > 0) {
+                    carRotationY = Math.max(carRotationY - rotationSpeed * 0.5, 0);
+                } else if (carRotationY < 0) {
+                    carRotationY = Math.min(carRotationY + rotationSpeed * 0.5, 0);
+                }
+            }
+            
+            // Accélération/ralentissement
+            if (keys.ArrowUp) {
+                carSpeed = Math.min(carSpeed + acceleration, maxSpeedForward);
+            } else if (keys.ArrowDown) {
+                carSpeed = Math.max(carSpeed - acceleration, -maxSpeedBackward);
+            } else {
+                // Ralentissement progressif
+                if (carSpeed > 0) {
+                    carSpeed = Math.max(carSpeed - deceleration, 0);
+                } else if (carSpeed < 0) {
+                    carSpeed = Math.min(carSpeed + deceleration, 0);
+                }
+            }
+            
+            // Déplacement de la voiture
+            carGroup.position.x = carPositionX;
+            carGroup.rotation.y = carRotationY;
+            carGroup.position.z += carSpeed;
+            carPositionZ = carGroup.position.z;
+            
+            // Rotation des roues avant selon la direction
+            wheelFL.rotation.y = -carRotationY * 2;
+            wheelFR.rotation.y = -carRotationY * 2;
+            
+            // Rotation des roues selon la vitesse
+            wheelFL.rotation.x -= carSpeed * 10;
+            wheelFR.rotation.x -= carSpeed * 10;
+            wheelRL.rotation.x -= carSpeed * 10;
+            wheelRR.rotation.x -= carSpeed * 10;
+
+            // Position de la caméra (suivi de la voiture)
+            const targetCameraX = carGroup.position.x * 0.7;
+            const targetCameraZ = carGroup.position.z + 15;
+            
+            camera.position.x += (targetCameraX - camera.position.x) * 0.1;
+            camera.position.z += (targetCameraZ - camera.position.z) * 0.1;
+            
+            camera.lookAt(
+                carGroup.position.x * 0.5, 
+                carGroup.position.y + 2, 
+                carGroup.position.z - 5
+            );
+
+            // Position de la lumière des phares
+            carLight.position.set(
+                carGroup.position.x,
+                carGroup.position.y + 2,
+                carGroup.position.z + 2
+            );
+
+            // Animation de la neige
+            animateSnow();
+
+            // Vérification de la proximité avec la porte
+            const distanceToDoor = carGroup.position.z - doorGroup.position.z;
+            if (distanceToDoor < 15 && distanceToDoor > -5 && !doorOpen && !doorOpening) {
+                doorOpening = true;
+                
+                // Animation d'ouverture des portes
+                const doorOpenTime = 2.0; // secondes
+                const startTime = Date.now();
+                
+                function openDoor() {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const progress = Math.min(elapsed / doorOpenTime, 1);
+                    
+                    // Les portes s'ouvrent vers l'extérieur
+                    leftDoor.position.x = -4 - 4 * progress;
+                    rightDoor.position.x = 4 + 4 * progress;
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(openDoor);
+                    } else {
+                        doorOpen = true;
+                        doorOpening = false;
+                        
+                        // Redirection après avoir passé la porte
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 1000);
+                    }
+                }
+                
+                openDoor();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Gestion du redimensionnement
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        window.addEventListener('resize', onWindowResize);
+
+        // Démarrer l'expérience une fois les assets chargés
+        loadAssets().then(() => {
+            // Fondu de sortie de l'écran de chargement
+            loadingScreen.style.opacity = '0';
+            setTimeout(() => {
+                loadingScreen.style.display = 'none';
+                animate();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

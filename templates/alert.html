@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/alert.css') }}">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4">
+    <div class="container mx-auto">
+        <h1 class="text-3xl font-bold mb-6 neon-text flex items-center">
+            <img src="{{ url_for('static', filename='images/logowasp.png') }}" alt="Logo" alt="Logo" style="width: 120px; height: 50px;">
+        </h1>
+        <div class="flex justify-end mb-4">
+            <a href="{{ url_for('dashboard') }}" class="text-sm font-semibold px-4 py-2 rounded-lg neon-border neon-text hover:bg-cyan-800 transition flex items-center gap-2">
+                <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+            </a>
+        </div>
+        
+        <div class="glass-panel rounded-xl p-6 mb-6 neon-border">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold neon-text">
+                    <i class="fas fa-bell mr-2"></i> Alertes en Temps Réel
+                </h2>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <span class="mr-2">Filtre:</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="criticalToggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+                            <span class="ml-2 text-sm">Afficher seulement les alertes critiques</span>
+                        </label>
+                    </div>
+                    <div class="relative">
+                        <select id="modelFilter" class="bg-gray-800 border border-gray-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
+                            <option value="all">Tous les modèles</option>
+                            <option value="Kitsune">Kitsune</option>
+                            <option value="LUCID">LUCID</option>
+                            <option value="Vertex AI">Vertex AI</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="border-b border-gray-700">
+                            <th class="px-4 py-3 text-left sortable" data-sort="timestamp">
+                                <div class="flex items-center">
+                                    <span>Timestamp</span>
+                                    <i class="fas fa-sort ml-2 text-gray-400"></i>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 text-left sortable" data-sort="file">
+                                <div class="flex items-center">
+                                    <span>Fichier PCAP</span>
+                                    <i class="fas fa-sort ml-2 text-gray-400"></i>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 text-left">IP Source → Destination</th>
+                            <th class="px-4 py-3 text-left sortable" data-sort="model">
+                                <div class="flex items-center">
+                                    <span>Modèle Déclencheur</span>
+                                    <i class="fas fa-sort ml-2 text-gray-400"></i>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 text-left sortable" data-sort="score">
+                                <div class="flex items-center">
+                                    <span>Score</span>
+                                    <i class="fas fa-sort ml-2 text-gray-400"></i>
+                                </div>
+                            </th>
+                            <th class="px-4 py-3 text-left sortable" data-sort="verdict">
+                                <div class="flex items-center">
+                                    <span>Verdict</span>
+                                    <i class="fas fa-sort ml-2 text-gray-400"></i>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertTableBody">
+                        <!-- Alerts will be populated here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="flex justify-between items-center mt-4">
+                <div class="text-sm text-gray-400">
+                    Affichage <span id="startItem">1</span> à <span id="endItem">10</span> sur <span id="totalItems">25</span> alertes
+                </div>
+                <div class="flex space-x-2" id="pagination">
+                    <!-- Pagination buttons will be added here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for alert details -->
+    <div class="modal-overlay" id="alertModal">
+        <div class="modal-content" id="modalContent">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-2xl font-bold neon-text" id="modalTitle">
+                            <i class="fas fa-info-circle mr-2"></i> Détail d'une Alerte
+                        </h3>
+                        <div class="text-sm text-gray-400" id="modalSubtitle">
+                            ID: #ALERT-2023-05-02-001
+                        </div>
+                    </div>
+                    <button id="closeModal" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div class="glass-panel rounded-lg p-4">
+                        <h4 class="font-semibold mb-3 text-blue-400">
+                            <i class="fas fa-network-wired mr-2"></i> Information Réseau
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="text-sm text-gray-400">IP Source</div>
+                                <div class="font-mono" id="modalSourceIP">192.168.1.45</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400">IP Destination</div>
+                                <div class="font-mono" id="modalDestIP">104.18.25.93</div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <div class="text-sm text-gray-400">Port Source</div>
+                                    <div class="font-mono" id="modalSourcePort">49234</div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-400">Port Destination</div>
+                                    <div class="font-mono" id="modalDestPort">443</div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400">Protocole</div>
+                                <div id="modalProtocol">TCP</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400">Taille du Payload</div>
+                                <div id="modalPayloadSize">1.2 MB</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-panel rounded-lg p-4">
+                        <h4 class="font-semibold mb-3 text-purple-400">
+                            <i class="fas fa-file-alt mr-2"></i> Fichier PCAP
+                        </h4>
+                        <div class="space-y-3">
+                            <div>
+                                <div class="text-sm text-gray-400">Nom du fichier</div>
+                                <div class="font-mono" id="modalPcapFile">wednesday.pcap</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400">Durée du flux</div>
+                                <div id="modalFlowDuration">2 minutes 34 secondes</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400">Timestamp</div>
+                                <div id="modalTimestamp">2025-05-02 15:36:22</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-panel rounded-lg p-4 mb-6">
+                    <h4 class="font-semibold mb-3 text-green-400">
+                        <i class="fas fa-brain mr-2"></i> Sorties des Modèles
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="model-output">
+                            <div class="font-semibold text-blue-300 mb-2">Kitsune</div>
+                            <div class="text-sm text-gray-400 mb-1">Score d'Anomalie</div>
+                            <div class="flex items-center">
+                                <div class="progress-bar w-full mr-2">
+                                    <div class="progress-fill high-severity" style="width: 85%"></div>
+                                </div>
+                                <span class="text-sm font-mono" id="kitsuneScore">0.85</span>
+                            </div>
+                        </div>
+                        <div class="model-output">
+                            <div class="font-semibold text-purple-300 mb-2">LUCID</div>
+                            <div class="text-sm text-gray-400 mb-1">Détection</div>
+                            <div class="flex items-center">
+                                <span class="font-semibold" id="lucidDetection">Zero-Day</span>
+                            </div>
+                        </div>
+                        <div class="model-output">
+                            <div class="font-semibold text-orange-300 mb-2">Vertex AI</div>
+                            <div class="text-sm text-gray-400 mb-1">Classification</div>
+                            <div class="flex items-center">
+                                <span class="font-semibold mr-2" id="vertexLabel">DoS</span>
+                                <div class="progress-bar flex-1">
+                                    <div class="progress-fill high-severity" style="width: 92%"></div>
+                                </div>
+                                <span class="text-sm font-mono ml-2" id="vertexConfidence">0.92</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-panel rounded-lg p-4 mb-6">
+                    <h4 class="font-semibold mb-3 text-yellow-400">
+                        <i class="fas fa-lightbulb mr-2"></i> Recommandations
+                    </h4>
+                    <div id="recommendations" class="flex flex-wrap">
+                        <span class="badge badge-danger">
+                            <i class="fas fa-ban mr-1"></i> Isoler IP
+                        </span>
+                        <span class="badge badge-warning">
+                            <i class="fas fa-search mr-1"></i> Vérifier flux
+                        </span>
+                        <span class="badge badge-info">
+                            <i class="fas fa-sliders-h mr-1"></i> Augmenter seuil modèle Kitsune
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between">
+                    <button id="backToTable" class="flex items-center px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition">
+                        <i class="fas fa-arrow-left mr-2"></i> Retour au tableau
+                    </button>
+                    <div class="flex space-x-3">
+                        <button class="flex items-center px-4 py-2 bg-blue-800 hover:bg-blue-700 rounded-lg transition">
+                            <i class="fas fa-file-export mr-2"></i> Exporter JSON
+                        </button>
+                        <button class="flex items-center px-4 py-2 bg-yellow-800 hover:bg-yellow-700 rounded-lg transition">
+                            <i class="fas fa-times-circle mr-2"></i> Noter comme faux positif
+                        </button>
+                        <button class="flex items-center px-4 py-2 bg-red-800 hover:bg-red-700 rounded-lg transition">
+                            <i class="fas fa-file-alt mr-2"></i> Créer incident
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/alert.js') }}"></script>
+</body>
+</html>

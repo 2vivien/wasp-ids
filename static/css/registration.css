@@ -1,0 +1,180 @@
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    
+    font-family: 'Segoe UI', sans-serif;
+    overflow: hidden;
+  }
+
+  .form-container {
+    background-color: rgba(0, 0, 0, 0.7);
+    max-width: 400px;
+    margin: auto;
+    margin-top: 50px;
+    padding: 30px;
+    border-radius: 20px;
+    backdrop-filter: blur(5px);
+    color: white;
+    position: relative;
+    animation: fadeIn 1.2s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {opacity: 0; transform: translateY(20px);}
+    to {opacity: 1; transform: translateY(0);}
+  }
+
+  .form-control {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    transition: all 0.3s ease-in-out;
+  }
+  .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.6); /* Lisible mais discret */
+    font-weight: 400;
+    font-size: 0.95rem;
+  }
+  .form-control:focus {
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid #f1c40f;
+    box-shadow: 0 0 10px rgba(241, 196, 15, 0.6);
+    color: #fff;
+  }
+/* Harmoniser l'apparence du <select> avec les autres champs */
+.form-select {
+    background-color: rgba(255, 255, 255, 0.08);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    transition: all 0.3s ease-in-out;
+    padding: 10px;
+  }
+  
+  .form-select:focus {
+    background-color: rgba(255, 255, 255, 0.12);
+    border: 1px solid #f1c40f;
+    box-shadow: 0 0 10px rgba(241, 196, 15, 0.6);
+    color: #fff;
+  }
+  
+  .form-select option {
+    color: black; /* Couleur du texte dans la liste déroulante */
+  }
+  
+
+  .input-group-text {
+    background-color: transparent;
+    border: none;
+    color: #f1c40f;
+  }
+
+  .btn-submit {
+    background-color: #f1c40f;
+    border: none;
+    border-radius: 30px;
+    font-weight: bold;
+    color: black;
+    transition: all 0.3s ease;
+    box-shadow: 0 5px 60px rgba(241, 196, 15, 0.4);
+  }
+
+  .password-wrapper {
+    position: relative;
+  }
+  
+  .password-wrapper .real-input {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .password-wrapper .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #999;
+    font-size: 1rem;
+    z-index: 10;
+    pointer-events: auto;
+    padding: 0 5px;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .password-wrapper .toggle-password:hover {
+    color: #333;
+  }
+  
+  .password-visual {
+    position: absolute;
+    left: 50px;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    font-family: monospace;
+    font-size: 1rem;
+    pointer-events: none;
+  }
+  
+  .password-visual span {
+    display: inline-block;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  
+  .password-visual span.revealed {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .password-visual span.hiding {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  
+   
+
+  .btn-submit:hover {
+    background-color: #d4ac0d;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 80px rgba(241, 196, 15, 0.7);
+  }
+
+  .social-btn {
+    border: none;
+    border-radius: 30px;
+    background-color: rgba(255,255,255,0.1);
+    color: #fff;
+    margin: 0 5px;
+    transition: all 0.3s ease;
+  }
+
+  .social-btn:hover {
+    background-color: #f1c40f;
+    color: #000;
+    transform: scale(1.05);
+  }
+
+  .form-check-label {
+    font-size: 0.9rem;
+  }
+
+  a {
+    color: #f1c40f;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  

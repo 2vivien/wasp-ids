@@ -1,0 +1,181 @@
+@keyframes blink {
+    0% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.7); }
+    50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.9); }
+    100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.7); }
+}
+
+.glass-panel {
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+.neon-text {
+    text-shadow: 0 0 5px #00b4d8, 0 0 10px #00b4d8;
+}
+
+.neon-border {
+    box-shadow: 0 0 10px rgba(0, 180, 216, 0.7);
+}
+
+.critical-alert {
+    animation: blink 1.5s infinite;
+    border-left: 4px solid #ef4444;
+}
+
+.tooltip {
+    position: relative;
+}
+
+.tooltip .tooltip-text {
+    visibility: hidden;
+    width: 300px;
+    background-color: rgba(15, 23, 42, 0.9);
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    border: 1px solid #00b4d8;
+    box-shadow: 0 0 15px rgba(0, 180, 216, 0.5);
+}
+
+.tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    width: 80%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+    box-shadow: 0 0 30px rgba(0, 180, 216, 0.5);
+}
+
+.modal-overlay.active .modal-content {
+    transform: translateY(0);
+}
+
+.critical-modal {
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.7);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    margin-right: 8px;
+    margin-bottom: 8px;
+}
+
+.badge-danger {
+    background-color: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    color: #ef4444;
+}
+
+.badge-warning {
+    background-color: rgba(234, 179, 8, 0.2);
+    border: 1px solid rgba(234, 179, 8, 0.5);
+    color: #eab308;
+}
+
+.badge-info {
+    background-color: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    color: #3b82f6;
+}
+
+.badge-success {
+    background-color: rgba(34, 197, 94, 0.2);
+    border: 1px solid rgba(34, 197, 94, 0.5);
+    color: #22c55e;
+}
+
+.pagination-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s;
+}
+
+.pagination-btn:hover {
+    background: rgba(51, 65, 85, 0.7);
+    box-shadow: 0 0 10px rgba(0, 180, 216, 0.5);
+}
+
+.pagination-btn.active {
+    background: rgba(0, 180, 216, 0.3);
+    box-shadow: 0 0 10px rgba(0, 180, 216, 0.7);
+}
+
+.sortable:hover {
+    cursor: pointer;
+    background: rgba(51, 65, 85, 0.3);
+}
+
+.alert-row:hover {
+    background: rgba(51, 65, 85, 0.5) !important;
+    cursor: pointer;
+}
+
+.progress-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    border-radius: 4px;
+}
+
+.high-severity {
+    background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.medium-severity {
+    background: linear-gradient(90deg, #eab308, #f59e0b);
+}
+
+.low-severity {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}

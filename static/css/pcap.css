@@ -1,0 +1,146 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto:wght@300;400;500&display=swap');
+        
+        :root {
+            --neon-blue: #00f7ff;
+            --neon-purple: #bd00ff;
+            --neon-pink: #ff00e4;
+            --dark-bg: #0f0f1a;
+            --darker-bg: #080811;
+            --card-bg: #151525;
+        }
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--dark-bg);
+            color: white;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        .neon-text {
+            text-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue);
+            color: white;
+        }
+        
+        .neon-border {
+            border: 1px solid var(--neon-blue);
+            box-shadow: 0 0 10px var(--neon-blue), inset 0 0 10px var(--neon-blue);
+        }
+        
+        .neon-button {
+            background: linear-gradient(45deg, var(--neon-blue), var(--neon-purple));
+            color: white;
+            border: none;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+        
+        .neon-button:hover {
+            box-shadow: 0 0 20px var(--neon-blue), 0 0 30px var(--neon-purple);
+            transform: translateY(-2px);
+        }
+        
+        .neon-card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(0, 247, 255, 0.2);
+        }
+        
+        .neon-card:hover {
+            box-shadow: 0 0 20px var(--neon-blue), 0 0 30px rgba(189, 0, 255, 0.3);
+            transform: translateY(-5px);
+        }
+        
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-completed {
+            background-color: rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            box-shadow: 0 0 5px #00ff00;
+        }
+        
+        .status-processing {
+            background-color: rgba(255, 165, 0, 0.2);
+            color: #ffa500;
+            box-shadow: 0 0 5px #ffa500;
+        }
+        
+        .status-error {
+            background-color: rgba(255, 0, 0, 0.2);
+            color: #ff0000;
+            box-shadow: 0 0 5px #ff0000;
+        }
+        
+        .sparkline {
+            height: 30px;
+            background: linear-gradient(90deg, #00f7ff33, #bd00ff33);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .sparkline::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, #ffffff10, transparent);
+            animation: sparklineGlow 2s infinite;
+        }
+        
+        @keyframes sparklineGlow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .dropzone {
+            border: 2px dashed var(--neon-blue);
+            border-radius: 8px;
+            transition: all 0.3s;
+            background-color: rgba(15, 15, 37, 0.5);
+        }
+        
+        .dropzone.active {
+            background-color: rgba(0, 247, 255, 0.1);
+            box-shadow: 0 0 20px var(--neon-blue);
+        }
+        
+        .search-input {
+            background-color: var(--darker-bg);
+            border: 1px solid var(--neon-blue);
+            color: white;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+        
+        .back-button {
+            transition: all 0.3s;
+        }
+        
+        .back-button:hover {
+            transform: translateX(-5px);
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+        
+        .model-select {
+            background-color: var(--darker-bg);
+            border: 1px solid var(--neon-purple);
+            color: white;
+        }
+        
+        .model-select:focus {
+            outline: none;
+            box-shadow: 0 0 10px var(--neon-purple);
+        }
