@@ -1,0 +1,39 @@
+feature,shap_importance
+Std,298174.5689805806
+Header_Length,0.0
+IPv,0.0
+IRC,0.0
+TCP,0.0
+UDP,0.0
+DHCP,0.0
+ARP,0.0
+ICMP,0.0
+IGMP,0.0
+LLC,0.0
+Protocol Type,0.0
+Tot sum,0.0
+Min,0.0
+Max,0.0
+AVG,0.0
+Tot size,0.0
+IAT,0.0
+SSH,0.0
+SMTP,0.0
+Telnet,0.0
+DNS,0.0
+Time_To_Live,0.0
+Rate,0.0
+fin_flag_number,0.0
+syn_flag_number,0.0
+rst_flag_number,0.0
+psh_flag_number,0.0
+ack_flag_number,0.0
+ece_flag_number,0.0
+cwr_flag_number,0.0
+ack_count,0.0
+syn_count,0.0
+fin_count,0.0
+rst_count,0.0
+HTTP,0.0
+HTTPS,0.0
+Number,0.0

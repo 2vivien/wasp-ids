@@ -506,4 +506,3 @@ if __name__ == '__main__':
     assert any("No Response Scan" in alert for alert in test_alerts_list), "Missing No Response Scan alert"
     print("Basic alert validation passed.")
 
-```

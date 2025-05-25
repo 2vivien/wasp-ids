@@ -1,0 +1,32 @@
+if (Std <= 1195.178) and (Std <= 632.147) and (Std <= 365.572) and (Std <= 179.201) then response: 4146.701 | based on 47,519 samples
+
+if (Std <= 1195.178) and (Std <= 632.147) and (Std <= 365.572) and (Std > 179.201) then response: 60063.747 | based on 2,454 samples
+
+if (Std <= 1195.178) and (Std > 632.147) and (Std > 881.439) and (Std <= 1055.339) then response: 965902.173 | based on 2,083 samples
+
+if (Std <= 1195.178) and (Std <= 632.147) and (Std > 365.572) and (Std <= 526.094) then response: 200234.531 | based on 1,626 samples
+
+if (Std <= 1195.178) and (Std > 632.147) and (Std <= 881.439) and (Std <= 723.627) then response: 473333.073 | based on 1,371 samples
+
+if (Std <= 1195.178) and (Std > 632.147) and (Std <= 881.439) and (Std > 723.627) then response: 574061.866 | based on 1,268 samples
+
+if (Std <= 1195.178) and (Std <= 632.147) and (Std > 365.572) and (Std > 526.094) then response: 353004.409 | based on 1,047 samples
+
+if (Std > 1195.178) and (Std <= 2491.674) and (Std <= 1647.557) and (Std <= 1443.672) then response: 1767706.895 | based on 1,020 samples
+
+if (Std <= 1195.178) and (Std > 632.147) and (Std > 881.439) and (Std > 1055.339) then response: 1261996.009 | based on 605 samples
+
+if (Std > 1195.178) and (Std <= 2491.674) and (Std <= 1647.557) and (Std > 1443.672) then response: 2401556.465 | based on 546 samples
+
+if (Std > 1195.178) and (Std <= 2491.674) and (Std > 1647.557) and (Std <= 1998.407) then response: 3134787.148 | based on 431 samples
+
+if (Std > 1195.178) and (Std <= 2491.674) and (Std > 1647.557) and (Std > 1998.407) then response: 4815611.053 | based on 95 samples
+
+if (Std > 1195.178) and (Std > 2491.674) and (Std <= 3424.326) and (Std <= 2916.115) then response: 7182921.912 | based on 45 samples
+
+if (Std > 1195.178) and (Std > 2491.674) and (Std <= 3424.326) and (Std > 2916.115) then response: 9810367.399 | based on 43 samples
+
+if (Std > 1195.178) and (Std > 2491.674) and (Std > 3424.326) and (Std <= 4314.091) then response: 13945400.988 | based on 25 samples
+
+if (Std > 1195.178) and (Std > 2491.674) and (Std > 3424.326) and (Std > 4314.091) then response: 22937470.494 | based on 4 samples
+

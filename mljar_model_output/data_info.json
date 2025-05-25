@@ -1,0 +1,129 @@
+{
+    "columns": [
+        "Header_Length",
+        "Protocol Type",
+        "Time_To_Live",
+        "Rate",
+        "fin_flag_number",
+        "syn_flag_number",
+        "rst_flag_number",
+        "psh_flag_number",
+        "ack_flag_number",
+        "ece_flag_number",
+        "cwr_flag_number",
+        "ack_count",
+        "syn_count",
+        "fin_count",
+        "rst_count",
+        "HTTP",
+        "HTTPS",
+        "DNS",
+        "Telnet",
+        "SMTP",
+        "SSH",
+        "IRC",
+        "TCP",
+        "UDP",
+        "DHCP",
+        "ARP",
+        "ICMP",
+        "IGMP",
+        "IPv",
+        "LLC",
+        "Tot sum",
+        "Min",
+        "Max",
+        "AVG",
+        "Std",
+        "Tot size",
+        "IAT",
+        "Number"
+    ],
+    "rows": 80243,
+    "cols": 38,
+    "target_is_numeric": true,
+    "columns_info": {
+        "Header_Length": [
+            "scale"
+        ],
+        "Protocol Type": [
+            "scale"
+        ],
+        "Time_To_Live": [
+            "scale"
+        ],
+        "Rate": [
+            "scale"
+        ],
+        "fin_flag_number": [],
+        "syn_flag_number": [],
+        "rst_flag_number": [],
+        "psh_flag_number": [],
+        "ack_flag_number": [
+            "scale"
+        ],
+        "ece_flag_number": [],
+        "cwr_flag_number": [],
+        "ack_count": [
+            "scale"
+        ],
+        "syn_count": [
+            "scale"
+        ],
+        "fin_count": [],
+        "rst_count": [
+            "scale"
+        ],
+        "HTTP": [],
+        "HTTPS": [],
+        "DNS": [],
+        "Telnet": [],
+        "SMTP": [],
+        "SSH": [],
+        "IRC": [],
+        "TCP": [
+            "scale"
+        ],
+        "UDP": [],
+        "DHCP": [],
+        "ARP": [],
+        "ICMP": [],
+        "IGMP": [],
+        "IPv": [
+            "scale"
+        ],
+        "LLC": [
+            "scale"
+        ],
+        "Tot sum": [
+            "scale"
+        ],
+        "Min": [
+            "scale"
+        ],
+        "Max": [
+            "scale"
+        ],
+        "AVG": [
+            "scale"
+        ],
+        "Std": [
+            "scale"
+        ],
+        "Tot size": [
+            "scale"
+        ],
+        "IAT": [
+            "scale"
+        ],
+        "Number": [
+            "scale"
+        ]
+    },
+    "target_info": [
+        "scale"
+    ],
+    "n_features": 38,
+    "is_sample_weighted": false,
+    "is_fairness_applied": false
+}
