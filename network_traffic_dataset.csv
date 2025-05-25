@@ -1,0 +1,4 @@
+Header_Length,Protocol Type,Time_To_Live,is_attack
+10,TCP,64,0
+20,UDP,128,1
+15,TCP,60,0
