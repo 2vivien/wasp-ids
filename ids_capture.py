@@ -4,41 +4,58 @@ import queue
 # import pfring # Hypothetical
 import subprocess # For tcpdump fallback
 import re # For parsing tcpdump output
-from datetime import datetime # For timestamp consistency
+from datetime import datetime, timezone# For timestamp consistency
 
 # Basic data class for holding extracted packet information
 class PacketData:
     """
     Represents a single captured network packet's relevant information.
-    Used to standardize data format before passing it to the detection engine.
+    Updated to include all fields needed for the modified database schema.
     """
-    def __init__(self, timestamp, protocol, source_ip, source_port, 
-                 destination_ip, destination_port, flags=None, details=""):
-        self.timestamp = timestamp          # datetime object of packet capture
-        self.protocol = protocol            # Protocol (TCP, UDP, ICMP)
-        self.source_ip = source_ip          # Source IP address
-        self.source_port = source_port      # Source port (if applicable)
-        self.destination_ip = destination_ip # Destination IP address
-        self.destination_port = destination_port # Destination port (if applicable)
-        self.flags = flags if flags is not None else {} # TCP flags (e.g., {'SYN': True, 'ACK': True})
-        self.details = details              # Raw line or specific ICMP type for context
+    def __init__(self, timestamp, protocol, source_ip, destination_ip, 
+                 destination_port, flags=None, details="", severity="MEDIUM", source_port=None):
+        """
+        Args:
+            timestamp (datetime): Packet capture time
+            protocol (str): TCP/UDP/ICMP
+            source_ip (str): Source IP address
+            destination_ip (str): Destination IP address
+            destination_port (int/str): Destination port
+            flags (dict): TCP flags like {'SYN': True, 'ACK': False}
+            details (str): Additional packet info
+            severity (str): LOW/MEDIUM/HIGH/CRITICAL
+            source_port (int/str): Source port (optional)
+        """
+        self.timestamp = timestamp
+        self.protocol = protocol
+        self.source_ip = source_ip
+        self.source_port = source_port
+        self.destination_ip = destination_ip
+        self.destination_port = destination_port
+        self.flags = flags if flags is not None else {}
+        self.details = details
+        self.severity = severity  # New field added
 
     def __repr__(self):
         return (f"PacketData(timestamp={self.timestamp}, protocol={self.protocol}, "
-                f"source_ip={self.source_ip}:{self.source_port}, "
-                f"destination_ip={self.destination_ip}:{self.destination_port}, "
-                f"flags={self.flags}, details='{self.details}')")
+                f"source={self.source_ip}:{self.source_port}, "
+                f"destination={self.destination_ip}:{self.destination_port}, "
+                f"flags={self.flags}, severity={self.severity}, "
+                f"details='{self.details[:50]}...'")
 
     def to_dict(self):
-        """Converts PacketData object to a dictionary for queuing and processing."""
+        """Converts to dictionary with all fields needed for database logging"""
         return {
-            "timestamp": self.timestamp.isoformat() + 'Z' if isinstance(self.timestamp, datetime) else self.timestamp,
+            "timestamp": self.timestamp.replace(tzinfo=timezone.utc).isoformat() 
+                         if isinstance(self.timestamp, datetime) 
+                         else datetime.now(timezone.utc).isoformat(),
             "protocol": self.protocol,
             "source_ip": self.source_ip,
             "source_port": self.source_port,
             "destination_ip": self.destination_ip,
             "destination_port": self.destination_port,
             "flags": self.flags,
+            "severity": self.severity,  # Included in dict
             "details": self.details
         }
 
@@ -84,101 +101,129 @@ class PacketCaptureThread(threading.Thread):
     def parse_tcpdump_line(self, line):
         """
         Parses a single line of tcpdump output to extract packet information.
+        Enhanced to include all fields needed for the updated database schema.
 
         Args:
-            line (str): A line of output from the tcpdump process.
+            line (str): A line of tcpdump output
 
         Returns:
-            PacketData or None: A PacketData object if parsing is successful, otherwise None.
-
-        Expected tcpdump line formats (examples):
-        - TCP:  YYYY-MM-DD HH:MM:SS.ffffff IP <src_ip>.<src_port> > <dst_ip>.<dst_port>: Flags [<flag_chars>], ...
-        - UDP:  YYYY-MM-DD HH:MM:SS.ffffff IP <src_ip>.<src_port> > <dst_ip>.<dst_port>: UDP, length <len>
-        - ICMP: YYYY-MM-DD HH:MM:SS.ffffff IP <src_ip> > <dst_ip>: ICMP <type>, ...
-        The parser focuses on IP packets and extracts common fields like timestamp, IPs, ports, protocol, and TCP flags.
+            PacketData or None: Parsed packet data with all required fields
         """
         try:
-            parts = line.split() # Split line by whitespace; robust for typical tcpdump output.
-            # Basic validation: must have enough parts and be an IP packet (parts[2] is typically 'IP').
-            if len(parts) < 5 or parts[2] != "IP": 
+            if not line.strip():
                 return None
 
-            # Timestamp parsing (expected format: YYYY-MM-DD HH:MM:SS.ffffff)
+            parts = line.split()
+            if len(parts) < 6 or parts[2] not in {"IP", "IP6"}:
+                return None
+
+            # Timestamp parsing with microseconds fallback
             timestamp_str = parts[0] + " " + parts[1]
             try:
                 timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S.%f")
-            except ValueError: # Fallback if microseconds are missing or format varies slightly
-                timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                try:
+                    timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    print(f"Timestamp parse failed: {line.strip()}")
+                    return None
 
+            # Initialize with default severity
             protocol = None
-            source_ip, source_port_str = None, None # Keep port as string initially for non-numeric cases (e.g. ICMP 'echo request')
-            dest_ip, dest_port_str = None, None
-            flags = {} # Dictionary to store TCP flags if present
-            details_str = line # Default details to the full line; refined for ICMP.
+            severity = "MEDIUM"  # Default value
+            source_ip, source_port = None, None
+            dest_ip, dest_port = None, None
+            flags = {}
+            details = line
 
-            # Source IP and Port (parts[3]): e.g., "192.168.1.10.54321" or "192.168.1.10.http"
-            # For ICMP, this might just be an IP or hostname if -n is not used strictly.
+            # Extract IPs and ports
             src_full = parts[3]
-            # Destination IP and Port (parts[5], removing trailing ':'): e.g., "192.168.1.20.80:"
             dst_full = parts[5].rstrip(':')
 
-            # Extract IP and Port from "IP.Port" strings using rpartition.
-            # rpartition splits the string at the last occurrence of the separator ('.').
-            # This correctly handles FQDNs like "host.domain.com.port" by separating "host.domain.com" from "port".
-            src_ip_parts = src_full.rpartition('.')
-            source_ip = src_ip_parts[0]
-            source_port_str = src_ip_parts[2]
+            # Source parsing with enhanced port handling
+            if '.' in src_full:
+                source_ip, _, source_port_str = src_full.rpartition('.')
+                try:
+                    source_port = int(source_port_str) if source_port_str.isdigit() else source_port_str
+                except ValueError:
+                    source_port = source_port_str
+            else:
+                source_ip = src_full
 
-            dst_ip_parts = dst_full.rpartition('.')
-            dest_ip = dst_ip_parts[0]
-            dest_port_str = dst_ip_parts[2]
+            # Destination parsing
+            if '.' in dst_full:
+                dest_ip, _, dest_port_str = dst_full.rpartition('.')
+                try:
+                    dest_port = int(dest_port_str) if dest_port_str.isdigit() else dest_port_str
+                except ValueError:
+                    dest_port = 0  # Default for non-numeric ports
+            else:
+                dest_ip = dst_full
+                dest_port = 0
 
-            # Convert port strings to int if they are digits. Otherwise, keep as string 
-            # (e.g., for ICMP types like 'echo request', or named services like 'http' if -n not fully effective).
-            source_port = int(source_port_str) if source_port_str.isdigit() else source_port_str
-            dest_port = int(dest_port_str) if dest_port_str.isdigit() else dest_port_str
-            
-            # Protocol and TCP Flags determination.
-            # This relies on keyword checking in the tcpdump output line, which is standard.
-            if "TCP" in line: # Check if "TCP" substring is present in the line.
+            # Protocol and flags detection
+            if "TCP" in line or any(f in line for f in ["Flags", "S ", "F ", "R ", "P ", "U ", "ack "]):
                 protocol = "TCP"
-                # Regex for TCP flags: e.g., "Flags [S.]", "Flags [P.]", "Flags [FSRAPU]".
-                # The regex captures characters within the square brackets following "Flags ".
-                flag_match = re.search(r"Flags \[(.*?)\]", line)
+                flag_match = re.search(r"Flags \[([SFPUR.]+)\]", line)
+                
                 if flag_match:
-                    flag_chars = flag_match.group(1) # The characters representing flags (e.g., "S", "S.", "PA")
-                    if 'S' in flag_chars: flags['SYN'] = True
-                    if '.' in flag_chars: flags['ACK'] = True # '.' often denotes ACK in tcpdump when other flags (like SYN, PSH) are also set.
-                    if 'F' in flag_chars: flags['FIN'] = True
-                    if 'R' in flag_chars: flags['RST'] = True
-                    if 'P' in flag_chars: flags['PSH'] = True
-                    if 'U' in flag_chars: flags['URG'] = True
-                # Fallback: Check for standalone "ack" if not in Flags field (can happen in some tcpdump outputs for pure ACKs).
-                if not flags.get('ACK') and " ack " in line: # Check for " ack " with spaces to avoid matching 'tcpacknowledgement'.
-                    flags['ACK'] = True
-
-            elif "UDP" in line: # Check for "UDP" substring.
-                protocol = "UDP"
-            elif "ICMP" in line: # Check for "ICMP" substring.
-                protocol = "ICMP"
-                # For ICMP, source_port and dest_port might be non-numeric (e.g., 'echo request').
-                # Try to extract more specific ICMP type/code from the line for better detail.
-                icmp_type_match = re.search(r"ICMP (echo request|echo reply|destination unreachable|time exceeded|redirect)", line, re.IGNORECASE)
-                if icmp_type_match:
-                    details_str = f"ICMP {icmp_type_match.group(1)}" # Use matched ICMP type as detail.
+                    flag_chars = flag_match.group(1)
+                    flags = {
+                        'SYN': 'S' in flag_chars,
+                        'FIN': 'F' in flag_chars,
+                        'RST': 'R' in flag_chars,
+                        'PSH': 'P' in flag_chars,
+                        'URG': 'U' in flag_chars,
+                        'ACK': '.' in flag_chars
+                    }
+                    # Adjust severity based on flags
+                    if flags.get('RST'):
+                        severity = "HIGH"
+                    elif flags.get('SYN') and not flags.get('ACK'):
+                        severity = "MEDIUM"
                 else:
-                    details_str = "ICMP packet" # Generic ICMP detail if specific type not matched.
+                    # Fallback flag detection
+                    flags = {
+                        'SYN': 'S' in line,
+                        'FIN': 'F' in line,
+                        'RST': 'R' in line,
+                        'PSH': 'P' in line,
+                        'URG': 'U' in line,
+                        'ACK': 'ack' in line.lower() or '.' in line
+                    }
 
-            if protocol and source_ip and dest_ip: # Ensure essential fields were successfully parsed.
+            elif "UDP" in line:
+                protocol = "UDP"
+                # High severity for UDP floods
+                if "length" in line and int(line.split("length")[1].split()[0]) > 1000:
+                    severity = "HIGH"
+
+            elif "ICMP" in line:
+                protocol = "ICMP"
+                icmp_type = re.search(r"ICMP (.*?),", line)
+                if icmp_type:
+                    details = f"ICMP {icmp_type.group(1)}"
+                    if "unreachable" in icmp_type.group(1).lower():
+                        severity = "MEDIUM"
+
+            # Create PacketData object with all fields
+            if protocol and source_ip and dest_ip:
                 return PacketData(
-                    timestamp=timestamp, protocol=protocol,
-                    source_ip=source_ip, source_port=source_port,
-                    destination_ip=dest_ip, destination_port=dest_port,
-                    flags=flags, details=details_str
+                    timestamp=timestamp,
+                    protocol=protocol,
+                    source_ip=source_ip,
+                    source_port=source_port,
+                    destination_ip=dest_ip,
+                    destination_port=dest_port,
+                    flags=flags,
+                    severity=severity,  # Included in the return object
+                    details=details
                 )
-            return None # Return None if parsing fails to meet criteria (e.g., not an IP packet, or essential fields missing).
+
+            return None
+
         except Exception as e:
-            # print(f"Error parsing line: '{line.strip()}' -> {e}") # Uncomment for debugging parsing errors.
+            print(f"Parser error in line '{line[:50]}...': {str(e)}")
             return None
 
     def run_pfring_capture(self):

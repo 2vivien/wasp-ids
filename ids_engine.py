@@ -2,7 +2,7 @@ import threading
 import time
 import queue
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 class DetectionEngine(threading.Thread):
     """
@@ -15,25 +15,27 @@ class DetectionEngine(threading.Thread):
         self.log_alert_callback = log_alert_callback # Function to call when an alert is triggered
         self.stop_event = stop_event or threading.Event() # threading.Event to signal thread termination
         self.setName("DetectionEngineThread")        # Name for easier debugging
+        self.last_no_response_cleanup_time = datetime.now(timezone.utc)
 
         # --- Rule Parameters ---
         # These define the thresholds and time windows for various detection rules.
         # They are currently hardcoded but could be made configurable (e.g., from a config file or UI).
 
         # SYN Scan (High Rate to Single Port) Parameters:
-        self.SYN_SCAN_THRESHOLD_COUNT = 15       # Number of SYN packets to trigger an alert
-        self.SYN_SCAN_TIME_WINDOW_SECONDS = 10   # Time window (seconds) to count SYNs for the above rule
+        self.SYN_SCAN_THRESHOLD_COUNT = 30       # Augmenté de 15 à 30 (30 SYNs vers un même port)
+        self.SYN_SCAN_TIME_WINDOW_SECONDS = 10   # Garde la même fenêtre temporelle (10s)
 
         # SYN Scan (Multiple Ports on a Single Destination) Parameters:
-        self.SYN_SCAN_TARGET_PORT_THRESHOLD = 5  # Number of distinct ports on one destination IP from one source
+        self.SYN_SCAN_TARGET_PORT_THRESHOLD = 10 # Augmenté de 5 à 10 (10 ports distincts sur une même IP)
+        self.SYN_SCAN_TARGET_TIME_WINDOW = 30    # Nouveau: fenêtre de 30s pour le multi-port
 
         # Horizontal Scan Parameters:
-        self.HORIZONTAL_SCAN_PORT_THRESHOLD = 15 # Number of distinct destination (IP:port) targets from one source
-        self.HORIZONTAL_SCAN_TIME_WINDOW_SECONDS = 30 # Time window (seconds) for tracking horizontal scan activity
+        self.HORIZONTAL_SCAN_PORT_THRESHOLD = 25 # Augmenté de 15 à 25 (25 cibles IP:port différentes)
+        self.HORIZONTAL_SCAN_TIME_WINDOW_SECONDS = 60 # Étendu de 30s à 60s
 
         # No Response Scan Parameters:
-        self.NO_RESPONSE_PROBE_TIMEOUT_SECONDS = 5 # How long (seconds) to wait for a response (SYN-ACK/RST) to a SYN probe
-        self.NO_RESPONSE_SCAN_THRESHOLD_COUNT = 10 # Number of non-responding probes from one source to trigger an alert
+        self.NO_RESPONSE_PROBE_TIMEOUT_SECONDS = 10 # Augmenté de 5s à 10s (temps d'attente réponse)
+        self.NO_RESPONSE_SCAN_THRESHOLD_COUNT = 15  # Augmenté de 10 à 15 (15 probes sans réponse)
 
         # --- State Trackers ---
         # These dictionaries store state information required for rule evaluation.
@@ -61,7 +63,7 @@ class DetectionEngine(threading.Thread):
         # Tracks sources that have recently triggered a "No Response Scan" to implement a cooldown period.
         # Structure: {source_ip: alert_timestamp}
         self.no_response_alerted_sources = {} 
-        self.last_no_response_cleanup_time = datetime.now() # Timestamp of the last global cleanup
+        self.last_no_response_cleanup_time = datetime.now(timezone.utc) # Timestamp of the last global cleanup
 
     def _prune_timestamps(self, timestamp_list, window_seconds, now=None):
         """
@@ -74,8 +76,8 @@ class DetectionEngine(threading.Thread):
             list: A new list containing only timestamps within the window.
         """
         if now is None:
-            now = datetime.now()
-        cutoff = now - timedelta(seconds=window_seconds)
+            now = datetime.now(timezone.utc)
+        cutoff = now.astimezone(timezone.utc) - timedelta(seconds=window_seconds)
         return [ts for ts in timestamp_list if ts > cutoff]
 
     def _prune_syn_from_source_to_dest_ip_tracker(self, now):
@@ -106,7 +108,7 @@ class DetectionEngine(threading.Thread):
             # If the first SYN for this source is older than (window * 2), remove the entry.
             # The multiplier (e.g., 2) provides a grace period beyond the active window.
             if data['first_syn_time'] and \
-               (now - data['first_syn_time']).total_seconds() > self.HORIZONTAL_SCAN_TIME_WINDOW_SECONDS * 2:
+               (now - data['first_syn_time'].replace(tzinfo=timezone.utc)).total_seconds() > self.HORIZONTAL_SCAN_TIME_WINDOW_SECONDS * 2:
                 del self.horizontal_scan_tracker[source_ip]
 
     def _prune_no_response_probe_tracker(self, now):
@@ -166,7 +168,9 @@ class DetectionEngine(threading.Thread):
         if not packet_data or not isinstance(packet_data, dict):
             return
 
-        current_time = datetime.now() # Use a consistent "now" for this processing cycle
+        print(f"--- [DetectionEngine] Received packet_data: {packet_data}")
+
+        current_time = datetime.now(timezone.utc) # Use a consistent "now" for this processing cycle
         
         try:
             # ids_capture.py produces ISO string with 'Z' like '2023-10-27T10:20:30.123456Z'
@@ -174,15 +178,17 @@ class DetectionEngine(threading.Thread):
             # For broader compatibility, replace 'Z' with '+00:00'.
             timestamp_str = packet_data.get("timestamp")
             if timestamp_str:
-                 if timestamp_str.endswith('Z'):
-                    timestamp_str = timestamp_str[:-1] + "+00:00"
-                 timestamp = datetime.fromisoformat(timestamp_str)
+                if timestamp_str.endswith('Z'):
+                    timestamp = datetime.fromisoformat(timestamp_str[:-1] + "+00:00").replace(tzinfo=timezone.utc)
+                else:
+                    timestamp = datetime.fromisoformat(timestamp_str).replace(tzinfo=timezone.utc)
             else:
                 timestamp = current_time
         except (ValueError, TypeError) as e:
+            timestamp = current_time
             return # Packet data is invalid, skip processing
 
-        current_time = datetime.now() # Use a consistent "now" for this processing cycle
+        current_time = datetime.now(timezone.utc) # Use a consistent "now" for this processing cycle
         
         # Parse timestamp from packet_data. Timestamps from ids_capture are ISO strings.
         try:
@@ -203,6 +209,7 @@ class DetectionEngine(threading.Thread):
         dest_port = packet_data.get("destination_port") # Can be string for ICMP, or int
         protocol = packet_data.get("protocol")
         flags = packet_data.get("flags", {}) # TCP flags like {'SYN': True}
+        print(f"--- [DetectionEngine] Extracted flags: {flags}")
 
         # Basic validation of extracted fields
         if not source_ip or not dest_ip or not protocol:
@@ -212,7 +219,7 @@ class DetectionEngine(threading.Thread):
         log_common = {
             "timestamp": timestamp, # Use the parsed (or fallback) packet timestamp for the alert
             "source_ip": source_ip, "destination_ip": dest_ip, 
-            "destination_port": dest_port, "protocol": protocol,
+            "protocol": protocol,
         }
 
         # --- Rule Logic: Process based on protocol ---
@@ -222,6 +229,7 @@ class DetectionEngine(threading.Thread):
                      not flags.get("RST", False) and not flags.get("FIN", False)
             is_syn_ack = flags.get("SYN", False) and flags.get("ACK", False)
             is_rst = flags.get("RST", False)
+            print(f"--- [DetectionEngine] Calculated boolean flags: is_syn={is_syn}, is_syn_ack={is_syn_ack}, is_rst={is_rst}")
 
             if is_syn: # --- Processing for SYN packets ---
                 # Rule: SYN Scan (High rate of SYNs to a specific destination port)
@@ -353,7 +361,7 @@ class DetectionEngine(threading.Thread):
     def run(self):
         """Main execution method for the DetectionEngine thread."""
         print(f"{self.getName()} starting.")
-        self.last_no_response_cleanup_time = datetime.now() # Initialize last cleanup time
+        self.last_no_response_cleanup_time = datetime.now(timezone.utc) # Initialize last cleanup time
         
         while not self.stop_event.is_set(): # Loop until the stop event is set
             try:
@@ -367,7 +375,7 @@ class DetectionEngine(threading.Thread):
             except queue.Empty:
                 # This exception occurs if input_queue.get() times out.
                 # It's an expected condition and a good opportunity to perform periodic tasks.
-                now = datetime.now()
+                now = datetime.now(timezone.utc)
                 if (now - self.last_no_response_cleanup_time).total_seconds() > 60: # Cleanup interval (e.g., 60s)
                     self.periodic_cleanup(now)
             except Exception as e:
@@ -378,7 +386,7 @@ class DetectionEngine(threading.Thread):
 
         print(f"{self.getName()} stopping.")
         # Perform final cleanup before the thread exits.
-        final_cleanup_time = datetime.now()
+        final_cleanup_time = datetime.now(timezone.utc)
         print(f"{self.getName()}: Performing final cleanup...")
         self.periodic_cleanup(final_cleanup_time)
         print(f"{self.getName()} finished cleanup and fully stopped.")
@@ -408,7 +416,7 @@ if __name__ == '__main__':
     engine = DetectionEngine(test_q, mock_logger, stop_ev)
     engine.start()
 
-    base_time = datetime.now()
+    base_time = datetime.now(timezone.utc)
 
     # --- Test Data Setup ---
     packets = []

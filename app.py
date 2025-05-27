@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 from functools import wraps
 import queue
@@ -67,21 +67,25 @@ class PortScanLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     source_ip = db.Column(db.String(45), nullable=False)
+    source_port = db.Column(db.Integer, nullable=True)  # Nouveau champ optionnel
     destination_ip = db.Column(db.String(45), nullable=False)
     destination_port = db.Column(db.Integer, nullable=False)
     protocol = db.Column(db.String(10), nullable=False)
     scan_type = db.Column(db.String(50), nullable=False)
+    severity = db.Column(db.String(20), default='MEDIUM', nullable=False)  # Nouveau champ
     details = db.Column(db.Text, nullable=True)
 
     def to_dict(self):
         return {
             'id': self.id,
-            'timestamp': self.timestamp.isoformat() + 'Z', # UTC format
+            'timestamp': self.timestamp.isoformat() + 'Z',
             'source_ip': self.source_ip,
+            'source_port': self.source_port,  # Ajouté
             'destination_ip': self.destination_ip,
             'destination_port': self.destination_port,
             'protocol': self.protocol,
             'scan_type': self.scan_type,
+            'severity': self.severity,  # Ajouté
             'details': self.details
         }
 
@@ -94,63 +98,148 @@ engine_thread = None  # Will hold the DetectionEngine instance
 
 # --- IDS Callback and Thread Management Functions ---
 
-def log_alert_to_db(scan_type, timestamp, source_ip, destination_ip, destination_port, protocol, details):
+def log_alert_to_db(
+    scan_type,
+    timestamp,
+    source_ip,
+    destination_ip,
+    destination_port,
+    protocol,
+    details,
+    severity="MEDIUM",
+    source_port=None
+):
     """
-    Callback function for the DetectionEngine to log alerts into the PostgreSQL database.
-    This function is executed by the DetectionEngine thread, so it needs its own app_context
-    to interact with Flask-SQLAlchemy and the database.
-    Args:
-        scan_type (str): The type of scan detected (e.g., "SYN Scan (High Rate to Port)").
-        timestamp (datetime or str): Timestamp of the event. Should be datetime from engine,
-                                     but handles ISO string conversion if necessary.
-        source_ip (str): Source IP address of the detected activity.
-        destination_ip (str): Destination IP address.
-        destination_port (int or str): Destination port. Can be "Multiple" or a numeric port.
-        protocol (str): Protocol used (e.g., "TCP", "UDP").
-        details (str): Additional details about the alert.
+    Logs security alerts to PostgreSQL database with complete error handling.
+    Includes advanced filtering to ignore normal traffic and focus on real threats.
     """
-    # Ensure this database operation runs within Flask's application context,
-    # as it's called from a separate thread (DetectionEngine).
     with app.app_context():
         try:
-            # Handle destination_port: The engine might send "Multiple" for some scan types.
-            # The PortScanLog model expects an Integer for destination_port.
-            # We log 0 as a placeholder if the port is not a single numeric value.
-            port_to_log = 0 # Default for "Multiple" or non-integer ports
-            if isinstance(destination_port, str) and destination_port.isdigit():
-                port_to_log = int(destination_port)
-            elif isinstance(destination_port, int):
-                port_to_log = destination_port
-            # Else (e.g., "Multiple", other non-digit strings), it remains 0.
+            # =============================================
+            # 1. FILTRES AVANCÉS - IGNORER LES ACTIVITÉS NORMALES
+            # =============================================
+            
+            # Ignorer les paquets de test internes
+            if source_ip == "10.0.0.99" and destination_ip == "192.168.1.200":
+                return
+            
+            # Liste des IPs locales à ignorer
+            local_ips = {
+                "127.0.0.1", "::1", "localhost",
+                "0.0.0.0", "255.255.255.255", 
+                "::", "ff02::1", "ff02::2"
+            }
+            if source_ip in local_ips or destination_ip in local_ips:
+                return
+            
+            # Ignorer les réseaux privés (RFC 1918 + multicast)
+            private_network_prefixes = (
+                "10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
+                "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
+                "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
+                "169.254.", "224.", "239.", "ff00::"
+            )
+            
+            if any(source_ip.startswith(p) for p in private_network_prefixes) or \
+               any(destination_ip.startswith(p) for p in private_network_prefixes):
+                return
+            
+            # Ignorer les ports courants légitimes (HTTP, HTTPS, DNS, etc.)
+            common_ports = {
+                80, 443, 53, 123, 22, 25, 110, 143, 
+                993, 995, 587, 3306, 5432, 3389, 5900
+            }
+            if isinstance(destination_port, int) and destination_port in common_ports:
+                return
+            
+            # Ignorer les protocoles non suspects (ICMP ping par exemple)
+            if protocol not in ("TCP", "UDP"):
+                return
+            
+            # =============================================
+            # 2. VALIDATION ET TRAITEMENT DES DONNÉES
+            # =============================================
+            
+            # Process destination port
+            port_to_log = 0
+            if isinstance(destination_port, (int, str)):
+                if str(destination_port).isdigit():
+                    port_to_log = int(destination_port)
+                elif destination_port == "Multiple":
+                    port_to_log = 0  # Spécial pour les scans multi-ports
 
-            # Ensure timestamp is a datetime object for database storage.
-            # The engine provides timestamps that should be datetime objects, but this robustly handles
-            # conversion if it's passed as an ISO string (e.g. from PacketData's to_dict via queue).
-            alert_timestamp = timestamp
-            if isinstance(timestamp, str): # If it's a string, parse it
-                if timestamp.endswith('Z'): # Handle 'Z' for UTC timezone by replacing with +00:00
-                    timestamp = timestamp[:-1] + "+00:00"
-                alert_timestamp = datetime.fromisoformat(timestamp)
-            elif not isinstance(timestamp, datetime): # Fallback if not datetime or string (should ideally not happen)
-                alert_timestamp = datetime.utcnow() 
+            # Process timestamp
+            if isinstance(timestamp, str):
+                timestamp = timestamp.replace('Z', '+00:00') if timestamp.endswith('Z') else timestamp
+                try:
+                    alert_timestamp = datetime.fromisoformat(timestamp)
+                except ValueError:
+                    alert_timestamp = datetime.utcnow()
+            else:
+                alert_timestamp = timestamp or datetime.utcnow()
 
-            # Create and save the log entry to the database.
+            # Validate severity
+            valid_severities = ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
+            severity = severity.upper() if severity.upper() in valid_severities else "MEDIUM"
+
+            # Process source port
+            source_port_int = None
+            if source_port is not None:
+                if isinstance(source_port, str) and source_port.isdigit():
+                    source_port_int = int(source_port)
+                elif isinstance(source_port, int):
+                    source_port_int = source_port
+
+            # =============================================
+            # 3. FILTRES SUPPLÉMENTAIRES BASÉS SUR LE CONTEXTE
+            # =============================================
+            
+            # Ignorer les scans de services internes connus
+            internal_services = {
+                ("192.168.1.1", 80),  # Routeur local
+                ("192.168.1.2", 22)   # Serveur SSH interne
+            }
+            if (destination_ip, destination_port) in internal_services:
+                return
+            
+            # Ignorer les communications entre serveurs connus
+            trusted_pairs = {
+                ("192.168.1.10", "192.168.1.20"),
+                ("192.168.1.10", "192.168.1.30")
+            }
+            if (source_ip, destination_ip) in trusted_pairs:
+                return
+
+            # =============================================
+            # 4. ENREGISTREMENT DE L'ALERTE
+            # =============================================
+            
+            # Create and save log entry
             log_entry = PortScanLog(
                 timestamp=alert_timestamp,
                 source_ip=source_ip,
-                destination_ip=destination_ip, 
-                destination_port=port_to_log, # Use the processed port_to_log
+                source_port=source_port_int,
+                destination_ip=destination_ip,
+                destination_port=port_to_log,
                 protocol=protocol,
                 scan_type=scan_type,
+                severity=severity,
                 details=details
             )
+
             db.session.add(log_entry)
             db.session.commit()
-            # Also print to console for immediate visibility during development/debugging.
-            print(f"ALERT Logged to DB: {scan_type} from {source_ip} to {destination_ip}:{destination_port}. Details: {details}")
+
+            # Debug logging
+            port_info = f"{source_ip}:{source_port}" if source_port else source_ip
+            print(f"[{severity}] {scan_type} detected from {port_info} to "
+                  f"{destination_ip}:{destination_port or 'Multiple'}")
+
         except Exception as e:
-            db.session.rollback() # Rollback in case of error during DB operation to maintain data integrity.
-            print(f"Error logging alert to DB: {e}. Data: scan_type={scan_type}, src_ip={source_ip}, dst_ip={destination_ip}, dst_port={destination_port}, proto={protocol}")
+            db.session.rollback()
+            print(f"Failed to log alert: {str(e)}")
+            print(f"Error context: {scan_type}, {source_ip}:{source_port}, "
+                  f"{destination_ip}:{destination_port}, {severity}")
 
 
 def start_ids_threads():
@@ -190,6 +279,64 @@ def start_ids_threads():
     # Start the threads. They will begin executing their run() methods.
     capture_thread_instance.start()
     engine_thread_instance.start()
+
+    # --- BEGIN MANUAL PACKET INJECTION FOR TESTING ---
+    if packet_queue:  # Ensure packet_queue is initialized
+        print("[App] Injecting a manual test SYN packet into the queue...")
+        test_syn_packet = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),  # Current time in UTC
+            "protocol": "TCP",
+            "source_ip": "10.0.0.99",         # Test source IP
+            "source_port": 12345,             # Test source port
+            "destination_ip": "192.168.1.200", # Test destination IP
+            "destination_port": 80,           # Test destination port
+            "flags": {
+                "SYN": True, 
+                "ACK": False, 
+                "FIN": False, 
+                "RST": False, 
+                "PSH": False, 
+                "URG": False
+            },
+            "details": "Manual test SYN packet injection",
+            "severity": "HIGH"                # Ajout du champ severity
+        }
+        packet_queue.put(test_syn_packet)
+        print(f"[App] Test SYN packet injected: {test_syn_packet}")
+        
+        # Alternative avec un objet PacketData si c'est ce que votre système attend
+        """
+        test_packet_data = PacketData(
+            timestamp=datetime.now(timezone.utc),
+            protocol="TCP",
+            source_ip="10.0.0.99",
+            source_port=12345,
+            destination_ip="192.168.1.200",
+            destination_port=80,
+            flags={"SYN": True, "ACK": False},
+            details="Manual test SYN packet injection"
+        )
+        packet_queue.put(test_packet_data)
+        print(f"[App] Test PacketData injected: {test_packet_data}")
+        """
+        
+        # For testing the "No Response Scan" logic, we can also inject a SYN-ACK response.
+        # This helps verify if the 'responded' flag gets set in no_response_probe_tracker.
+        # The source/dest are swapped compared to the SYN.
+        # This part is optional but useful for comprehensive testing.
+        # test_syn_ack_packet = {
+        #     "timestamp": (datetime.utcnow() + timedelta(milliseconds=100)).isoformat() + 'Z',
+        #     "protocol": "TCP",
+        #     "source_ip": "192.168.1.200", # Original destination is now source
+        #     "source_port": 80,
+        #     "destination_ip": "10.0.0.99", # Original source is now destination
+        #     "destination_port": 12345,
+        #     "flags": {"SYN": True, "ACK": True},
+        #     "details": "Manual test SYN-ACK packet injection"
+        # }
+        # packet_queue.put(test_syn_ack_packet)
+        # print(f"[App] Test SYN-ACK packet injected: {test_syn_ack_packet}")
+    # --- END MANUAL PACKET INJECTION FOR TESTING ---
     
     # Store instances in global variables (optional, but can be useful for state checking or direct interaction if needed).
     capture_thread = capture_thread_instance
