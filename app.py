@@ -113,49 +113,11 @@ def log_alert_to_db(
     Logs security alerts to PostgreSQL database with complete error handling.
     Includes advanced filtering to ignore normal traffic and focus on real threats.
     """
+    print(f"DEBUG - Received alert: {scan_type} {source_ip} -> {destination_ip}:{destination_port}")
     with app.app_context():
         try:
-            # =============================================
-            # 1. FILTRES AVANCÉS - IGNORER LES ACTIVITÉS NORMALES
-            # =============================================
-            
-            # Ignorer les paquets de test internes
-            if source_ip == "10.0.0.99" and destination_ip == "192.168.1.200":
-                return
-            
-            # Liste des IPs locales à ignorer
-            local_ips = {
-                "127.0.0.1", "::1", "localhost",
-                "0.0.0.0", "255.255.255.255", 
-                "::", "ff02::1", "ff02::2"
-            }
-            if source_ip in local_ips or destination_ip in local_ips:
-                return
-            
-            # Ignorer les réseaux privés (RFC 1918 + multicast)
-            private_network_prefixes = (
-                "10.", "192.168.", "172.16.", "172.17.", "172.18.", "172.19.",
-                "172.20.", "172.21.", "172.22.", "172.23.", "172.24.", "172.25.",
-                "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
-                "169.254.", "224.", "239.", "ff00::"
-            )
-            
-            if any(source_ip.startswith(p) for p in private_network_prefixes) or \
-               any(destination_ip.startswith(p) for p in private_network_prefixes):
-                return
-            
-            # Ignorer les ports courants légitimes (HTTP, HTTPS, DNS, etc.)
-            common_ports = {
-                80, 443, 53, 123, 22, 25, 110, 143, 
-                993, 995, 587, 3306, 5432, 3389, 5900
-            }
-            if isinstance(destination_port, int) and destination_port in common_ports:
-                return
-            
-            # Ignorer les protocoles non suspects (ICMP ping par exemple)
-            if protocol not in ("TCP", "UDP"):
-                return
-            
+           
+            print(f"ALERTE ENREGISTRÉE: {scan_type} {source_ip} -> {destination_ip}")
             # =============================================
             # 2. VALIDATION ET TRAITEMENT DES DONNÉES
             # =============================================
@@ -190,25 +152,6 @@ def log_alert_to_db(
                 elif isinstance(source_port, int):
                     source_port_int = source_port
 
-            # =============================================
-            # 3. FILTRES SUPPLÉMENTAIRES BASÉS SUR LE CONTEXTE
-            # =============================================
-            
-            # Ignorer les scans de services internes connus
-            internal_services = {
-                ("192.168.1.1", 80),  # Routeur local
-                ("192.168.1.2", 22)   # Serveur SSH interne
-            }
-            if (destination_ip, destination_port) in internal_services:
-                return
-            
-            # Ignorer les communications entre serveurs connus
-            trusted_pairs = {
-                ("192.168.1.10", "192.168.1.20"),
-                ("192.168.1.10", "192.168.1.30")
-            }
-            if (source_ip, destination_ip) in trusted_pairs:
-                return
 
             # =============================================
             # 4. ENREGISTREMENT DE L'ALERTE
@@ -243,10 +186,13 @@ def log_alert_to_db(
 
 
 def start_ids_threads():
+    
     """Initializes and starts the packet capture and detection engine threads."""
     if not IDS_MODULES_LOADED:
         print("IDS modules (ids_capture, ids_engine) not loaded. IDS threads will not start.")
         return
+    # Attendre que Flask soit complètement initialisé
+    time.sleep(5)
 
     global capture_thread, engine_thread # Refer to global variables to store thread instances.
     
@@ -254,7 +200,7 @@ def start_ids_threads():
     # defaults to 'lo' (loopback interface).
     # 'lo' is safer for initial testing and doesn't usually require root for tcpdump.
     # Capturing on 'eth0' or other physical interfaces typically requires sudo/root privileges for tcpdump.
-    capture_interface = app.config.get('CAPTURE_INTERFACE', 'lo') 
+    capture_interface = app.config.get('CAPTURE_INTERFACE', 'wlp2s0')
     print(f"Attempting to start IDS packet capture on interface: {capture_interface}")
 
     # Create and configure PacketCaptureThread.

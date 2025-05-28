@@ -22,12 +22,12 @@ class DetectionEngine(threading.Thread):
         # They are currently hardcoded but could be made configurable (e.g., from a config file or UI).
 
         # SYN Scan (High Rate to Single Port) Parameters:
-        self.SYN_SCAN_THRESHOLD_COUNT = 30       # Augmenté de 15 à 30 (30 SYNs vers un même port)
+        self.SYN_SCAN_THRESHOLD_COUNT = 3       # Augmenté de 15 à 30 (30 SYNs vers un même port)
         self.SYN_SCAN_TIME_WINDOW_SECONDS = 10   # Garde la même fenêtre temporelle (10s)
 
         # SYN Scan (Multiple Ports on a Single Destination) Parameters:
-        self.SYN_SCAN_TARGET_PORT_THRESHOLD = 10 # Augmenté de 5 à 10 (10 ports distincts sur une même IP)
-        self.SYN_SCAN_TARGET_TIME_WINDOW = 30    # Nouveau: fenêtre de 30s pour le multi-port
+        self.SYN_SCAN_TARGET_PORT_THRESHOLD = 2 # Requirement: 5 distinct ports
+        self.SYN_SCAN_TARGET_TIME_WINDOW = 10   # Requirement: 10 second window
 
         # Horizontal Scan Parameters:
         self.HORIZONTAL_SCAN_PORT_THRESHOLD = 25 # Augmenté de 15 à 25 (25 cibles IP:port différentes)
@@ -47,9 +47,9 @@ class DetectionEngine(threading.Thread):
         self.syn_from_source_to_dest_port_tracker = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
         
         # For SYN Scan (Multiple Ports on Dest):
-        # Tracks distinct ports targeted by a source IP on a single destination IP.
-        # Structure: {source_ip: {dest_ip: {port1, port2, ...}}}
-        self.syn_from_source_to_dest_ip_tracker = defaultdict(lambda: defaultdict(set))
+        # Tracks (port, timestamp) tuples for SYNs from a source IP to a single destination IP.
+        # Structure: {source_ip: {dest_ip: [(port1, ts1), (port2, ts2), ...]}}
+        self.syn_from_source_to_dest_ip_tracker = defaultdict(lambda: defaultdict(list))
         
         # For Horizontal Scans:
         # Tracks distinct (dest_ip, dest_port) tuples targeted by a source IP.
@@ -87,14 +87,10 @@ class DetectionEngine(threading.Thread):
         could be added (e.g., if a source_ip hasn't sent any SYNs for a while, its entries could be removed).
         This is a placeholder for more advanced pruning logic.
         """
-        # This tracker (self.syn_from_source_to_dest_ip_tracker) is currently cleared when an alert is triggered.
-        # For more robust pruning, one might track the last activity time for each source_ip
-        # and remove entries that have been inactive for an extended period.
-        # Example (conceptual):
-        # for source_ip, dest_data in list(self.syn_from_source_to_dest_ip_tracker.items()):
-        #     if is_inactive(source_ip, now, some_long_timeout): # is_inactive would be a new helper
-        #         del self.syn_from_source_to_dest_ip_tracker[source_ip]
-        pass # Currently cleared on alert, so explicit pruning here is minimal.
+        # NOTE: This specific tracker's pruning is now handled inline within the process_packet method
+        # when a SYN packet is processed for the "SYN Scan (Multiple Ports on Dest)" rule.
+        # This function is effectively obsolete for self.syn_from_source_to_dest_ip_tracker.
+        pass
 
     def _prune_horizontal_scan_tracker(self, now):
         """
@@ -173,9 +169,6 @@ class DetectionEngine(threading.Thread):
         current_time = datetime.now(timezone.utc) # Use a consistent "now" for this processing cycle
         
         try:
-            # ids_capture.py produces ISO string with 'Z' like '2023-10-27T10:20:30.123456Z'
-            # Python's fromisoformat handles 'Z' correctly from 3.11+.
-            # For broader compatibility, replace 'Z' with '+00:00'.
             timestamp_str = packet_data.get("timestamp")
             if timestamp_str:
                 if timestamp_str.endswith('Z'):
@@ -186,22 +179,6 @@ class DetectionEngine(threading.Thread):
                 timestamp = current_time
         except (ValueError, TypeError) as e:
             timestamp = current_time
-            return # Packet data is invalid, skip processing
-
-        current_time = datetime.now(timezone.utc) # Use a consistent "now" for this processing cycle
-        
-        # Parse timestamp from packet_data. Timestamps from ids_capture are ISO strings.
-        try:
-            timestamp_str = packet_data.get("timestamp")
-            if timestamp_str:
-                 if timestamp_str.endswith('Z'): # Handle 'Z' for UTC
-                    timestamp_str = timestamp_str[:-1] + "+00:00"
-                 timestamp = datetime.fromisoformat(timestamp_str)
-            else: # Fallback if timestamp is missing (should not happen with valid PacketData)
-                timestamp = current_time
-        except (ValueError, TypeError) as e:
-            # print(f"Error parsing timestamp: {packet_data.get('timestamp')}, error: {e}. Using current_time.")
-            timestamp = current_time # Fallback to current time if parsing fails
 
         # Extract core packet information
         source_ip = packet_data.get("source_ip")
@@ -231,6 +208,14 @@ class DetectionEngine(threading.Thread):
             is_rst = flags.get("RST", False)
             print(f"--- [DetectionEngine] Calculated boolean flags: is_syn={is_syn}, is_syn_ack={is_syn_ack}, is_rst={is_rst}")
 
+         # --- Détection des scans FIN et XMAS ---
+        if flags.get("FIN") and not flags.get("ACK"):
+            self.log_alert_callback(scan_type="FIN Scan", **log_common)
+
+        if flags.get("URG") and flags.get("PSH") and flags.get("FIN"):
+            self.log_alert_callback(scan_type="Xmas Scan", **log_common)
+
+
             if is_syn: # --- Processing for SYN packets ---
                 # Rule: SYN Scan (High rate of SYNs to a specific destination port)
                 # Detects if a source sends many SYN packets to a single destination IP:port
@@ -248,18 +233,45 @@ class DetectionEngine(threading.Thread):
                     self.syn_from_source_to_dest_port_tracker[source_ip][dest_ip][dest_port] = [] 
 
                 # Rule: SYN Scan (SYNs to multiple distinct ports on a single destination IP)
-                # Detects if a source sends SYNs to many different ports on the same destination host.
-                # This rule counts unique ports targeted by a source on a destination IP.
-                # It doesn't have a strict time window for each port addition to the set but relies on
-                # overall activity and periodic pruning for cleanup.
-                ports_targeted_on_dest_ip = self.syn_from_source_to_dest_ip_tracker[source_ip][dest_ip]
-                ports_targeted_on_dest_ip.add(dest_port) # Add the current destination port to the set
+                # Detects if a source sends SYNs to many different ports on the same destination host
+                # within self.SYN_SCAN_TARGET_TIME_WINDOW.
                 
-                if len(ports_targeted_on_dest_ip) >= self.SYN_SCAN_TARGET_PORT_THRESHOLD:
-                     self.log_alert_callback(scan_type="SYN Scan (Multiple Ports on Dest)", **log_common,
-                                            destination_port="Multiple", # Port is variable for this alert type
-                                            details=f"{source_ip} sent SYNs to {len(ports_targeted_on_dest_ip)} distinct ports on {dest_ip}.")
-                     self.syn_from_source_to_dest_ip_tracker[source_ip][dest_ip].clear() # Clear after alert
+                # Step 1: Retrieve the list of (port, timestamp) events for the current source IP and destination IP pair.
+                # Each element in the list is a tuple: (destination_port_of_SYN, timestamp_of_SYN).
+                syn_events_to_dest_ip_list = self.syn_from_source_to_dest_ip_tracker[source_ip][dest_ip]
+                
+                # Step 2: Append the current SYN packet's (destination port, timestamp) to this list.
+                # 'timestamp' here is the timestamp of the currently processed packet.
+                syn_events_to_dest_ip_list.append((dest_port, timestamp))
+                
+                # Step 3: Prune the list to keep only events within the defined time window.
+                # 'current_time' is the time when process_packet started.
+                # 'self.SYN_SCAN_TARGET_TIME_WINDOW' is the duration (e.g., 10 seconds) for this scan type.
+                # Events older than 'cutoff_time' are removed.
+                cutoff_time = current_time - timedelta(seconds=self.SYN_SCAN_TARGET_TIME_WINDOW)
+                pruned_syn_events = [(p, ts) for p, ts in syn_events_to_dest_ip_list if ts >= cutoff_time]
+                # Update the tracker with the pruned list.
+                self.syn_from_source_to_dest_ip_tracker[source_ip][dest_ip] = pruned_syn_events
+                
+                # Step 4: Count the number of unique destination ports targeted in the pruned list (i.e., within the time window).
+                # This is done by creating a set of all port numbers from the pruned list of events.
+                unique_ports_in_window = set(p for p, ts in pruned_syn_events)
+                
+                # Step 5: Check if the count of unique ports meets or exceeds the threshold.
+                if len(unique_ports_in_window) >= self.SYN_SCAN_TARGET_PORT_THRESHOLD:
+                    self.log_alert_callback(
+                        scan_type="SYN Scan (Multiple Ports on Dest)",
+                        **log_common, # Includes timestamp, source_ip, dest_ip, protocol
+                        destination_port="Multiple", # Port is variable for this alert type
+                        details=(
+                            f"{source_ip} sent SYNs to {len(unique_ports_in_window)} distinct ports "
+                            f"on {dest_ip} within the last {self.SYN_SCAN_TARGET_TIME_WINDOW} seconds. "
+                            f"Ports: {sorted(list(unique_ports_in_window))[:5]}..." # Show some example ports
+                        )
+                    )
+                    # Clear the tracker for this specific (source_ip, dest_ip) pair after alerting
+                    # to prevent immediate re-alerting on the same set of packets.
+                    self.syn_from_source_to_dest_ip_tracker[source_ip][dest_ip].clear()
 
                 # Rule: Horizontal Scan (SYNs to many distinct destination IP:ports)
                 # Detects if a source sends SYNs to many different destination IP addresses and ports.
@@ -294,7 +306,11 @@ class DetectionEngine(threading.Thread):
             elif is_syn_ack or is_rst:
                 original_scanner_ip = dest_ip  # The recipient of the SYN-ACK/RST was the original prober
                 probed_host_ip = source_ip     # The sender of SYN-ACK/RST was the probed host
-                probed_port = packet_data.get("source_port") # The port on the probed host that sent the response
+                probed_port_val = packet_data.get("source_port") # The port on the probed host that sent the response
+                
+                # Normalize probed_port_val to ensure it's an integer for dictionary key consistency.
+                # If source_port was None (e.g. for some ICMP responses or malformed packets), default to 0.
+                probed_port = int(probed_port_val) if probed_port_val is not None else 0
 
                 # Check if this response corresponds to a known probe in our tracker
                 if original_scanner_ip in self.no_response_probe_tracker and \
@@ -356,7 +372,7 @@ class DetectionEngine(threading.Thread):
         # The cleanup interval is set to 60 seconds.
         if (current_time - self.last_no_response_cleanup_time).total_seconds() > 60: 
             self.periodic_cleanup(current_time)
-
+    
 
     def run(self):
         """Main execution method for the DetectionEngine thread."""
@@ -432,14 +448,44 @@ if __name__ == '__main__':
             'destination_port': syn_scan_dest_port, 'protocol': 'TCP', 'flags': {'SYN': True}
         })
 
-    # 2. SYN Scan (Multiple Ports on Dest)
-    syn_multi_port_source = '10.0.0.2'
-    syn_multi_port_dest_ip = '192.168.1.101'
-    for i in range(engine.SYN_SCAN_TARGET_PORT_THRESHOLD + 3): # Exceed threshold
+    # 2. SYN Scan (Multiple Ports on Dest) - SCENARIOS
+    syn_multi_port_dest_ip = '192.168.1.101' # Common destination for these tests
+
+    # Scenario 1 (Should trigger): 5 SYNs to 5 different ports within 10 seconds
+    syn_multi_port_source_scenario1 = '10.0.0.2_scenario1_trigger'
+    for i in range(engine.SYN_SCAN_TARGET_PORT_THRESHOLD): # Exactly 5 packets
         packets.append({
-            'timestamp': (base_time + timedelta(milliseconds=i * 150)).isoformat() + 'Z',
-            'source_ip': syn_multi_port_source, 'destination_ip': syn_multi_port_dest_ip,
-            'destination_port': 8000 + i, 'protocol': 'TCP', 'flags': {'SYN': True}
+            'timestamp': (base_time + timedelta(seconds=i * 1)).isoformat() + 'Z', # 0s, 1s, 2s, 3s, 4s
+            'source_ip': syn_multi_port_source_scenario1, 
+            'destination_ip': syn_multi_port_dest_ip,
+            'destination_port': 8000 + i, 
+            'protocol': 'TCP', 'flags': {'SYN': True}
+        })
+
+    # Scenario 2 (Should NOT trigger - insufficient ports): 4 SYNs to 4 different ports within 10 seconds
+    syn_multi_port_source_scenario2 = '10.0.0.2_scenario2_noalert_ports'
+    for i in range(engine.SYN_SCAN_TARGET_PORT_THRESHOLD - 1): # 4 packets
+        packets.append({
+            'timestamp': (base_time + timedelta(seconds=i * 1)).isoformat() + 'Z', # 0s, 1s, 2s, 3s
+            'source_ip': syn_multi_port_source_scenario2,
+            'destination_ip': syn_multi_port_dest_ip,
+            'destination_port': 9000 + i,
+            'protocol': 'TCP', 'flags': {'SYN': True}
+        })
+
+    # Scenario 3 (Should NOT trigger - outside time window): 5 SYNs to 5 different ports, but spread out
+    # Packets at 0s, 3s, 6s, 9s, 12s.
+    # When packet at 12s arrives, the window is [2s, 12s]. Packets within this window:
+    # (P7001, 3s), (P7002, 6s), (P7003, 9s), (P7004, 12s) -> 4 distinct ports. Not enough.
+    syn_multi_port_source_scenario3 = '10.0.0.2_scenario3_noalert_time'
+    timing_scenario3 = [0, 3, 6, 9, 12] # seconds
+    for i in range(len(timing_scenario3)):
+        packets.append({
+            'timestamp': (base_time + timedelta(seconds=timing_scenario3[i])).isoformat() + 'Z',
+            'source_ip': syn_multi_port_source_scenario3,
+            'destination_ip': syn_multi_port_dest_ip,
+            'destination_port': 7000 + i,
+            'protocol': 'TCP', 'flags': {'SYN': True}
         })
 
     # 3. Horizontal Scan
@@ -507,10 +553,31 @@ if __name__ == '__main__':
         print("Engine thread did not join cleanly!")
     
     print(f"\n--- Detection engine test finished. Total alerts generated: {len(test_alerts_list)} ---")
-    # Basic validation of alerts
-    assert any("SYN Scan (High Rate to Port)" in alert for alert in test_alerts_list), "Missing SYN Scan (High Rate) alert"
-    assert any("SYN Scan (Multiple Ports on Dest)" in alert for alert in test_alerts_list), "Missing SYN Scan (Multi-Port) alert"
-    assert any("Horizontal Scan" in alert for alert in test_alerts_list), "Missing Horizontal Scan alert"
-    assert any("No Response Scan" in alert for alert in test_alerts_list), "Missing No Response Scan alert"
-    print("Basic alert validation passed.")
+    
+    # --- Assertions for Expected Alerts ---
+    alerts_str = "\n".join(test_alerts_list) # For easier searching
+
+    # Check for expected alerts
+    assert "SYN Scan (High Rate to Port) from 10.0.0.1" in alerts_str, "Missing SYN Scan (High Rate) alert for 10.0.0.1"
+    
+    # SYN Scan (Multiple Ports on Dest) - Scenario 1 (expected)
+    assert f"SYN Scan (Multiple Ports on Dest) from {syn_multi_port_source_scenario1}" in alerts_str, \
+        f"Missing SYN Scan (Multi-Port) alert for {syn_multi_port_source_scenario1}"
+    
+    # SYN Scan (Multiple Ports on Dest) - Scenario 2 (NOT expected)
+    assert not (f"SYN Scan (Multiple Ports on Dest) from {syn_multi_port_source_scenario2}" in alerts_str), \
+        f"Unexpected SYN Scan (Multi-Port) alert for {syn_multi_port_source_scenario2} (insufficient ports)"
+
+    # SYN Scan (Multiple Ports on Dest) - Scenario 3 (NOT expected)
+    assert not (f"SYN Scan (Multiple Ports on Dest) from {syn_multi_port_source_scenario3}" in alerts_str), \
+        f"Unexpected SYN Scan (Multi-Port) alert for {syn_multi_port_source_scenario3} (outside time window)"
+
+    assert "Horizontal Scan from 10.0.0.3" in alerts_str, "Missing Horizontal Scan alert for 10.0.0.3"
+    assert "No Response Scan from 10.0.0.4" in alerts_str, "Missing No Response Scan alert for 10.0.0.4"
+    
+    # Count specific alert types to ensure only expected ones are present for multi-port
+    multi_port_alerts_count = sum(1 for alert in test_alerts_list if "SYN Scan (Multiple Ports on Dest)" in alert and syn_multi_port_source_scenario1 in alert)
+    assert multi_port_alerts_count == 1, f"Expected 1 SYN Scan (Multiple Ports on Dest) alert for {syn_multi_port_source_scenario1}, got {multi_port_alerts_count}"
+
+    print("All expected alerts present and no unexpected multi-port SYN scan alerts. Basic alert validation passed.")
 

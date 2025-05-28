@@ -65,37 +65,18 @@ class PacketCaptureThread(threading.Thread):
     It can use PF_RING if available (currently placeholder) or falls back to tcpdump.
     Captured and parsed packet data is put onto a shared queue for processing.
     """
-    def __init__(self, data_queue, interface="eth0", stop_event=None):
+    def __init__(self, data_queue, interface="wlp2s0", stop_event=None):
         super().__init__()
         self.setName(f"PacketCaptureThread-{interface}") # Set thread name for easier debugging
         self.data_queue = data_queue # queue.Queue object to pass PacketData (as dicts) to the engine
-        self.interface = interface   # Network interface to capture from (e.g., 'eth0', 'lo')
+        self.interface = interface   # Network interface to capture from (e.g., 'wlp2s0', 'eth0')
         self.stop_event = stop_event or threading.Event() # threading.Event to signal thread termination
         self.use_pfring = False      # Flag to indicate if PF_RING is active (currently always False)
         self.pf_socket = None        # Placeholder for PF_RING socket object
-
-        # --- PF_RING Initialization Placeholder ---
-        # The following block is conceptual and non-operational.
-        # PF_RING Python bindings were not available/integrated in this project iteration.
-        # If PF_RING were to be used, proper library import and initialization would occur here.
-        # This section is clearly marked as a non-operational placeholder.
-        # try:
-        #     import pfring # Example: actual library name might differ
-        #     # self.pf_socket = pfring.Socket()
-        #     # self.pf_socket.open_device(self.interface)
-        #     # ... more pfring setup ...
-        #     self.use_pfring = True
-        #     print("Hypothetically initialized PF_RING.")
-        # except ImportError:
-        #     print("PF_RING Python library not found. This is expected.")
-        # except Exception as e:
-        #     print(f"Hypothetical PF_RING init error: {e}")
-        #     self.use_pfring = False
-        # --- End of PF_RING Placeholder ---
         
         if not self.use_pfring:
             # This message clarifies that tcpdump is the active capture method.
-            print(f"{self.getName()}: PF_RING not available/initialized. Defaulting to tcpdump for packet capture.")
+            print(f"{self.getName()}: PF_RING not available/initialized. Using tcpdump for packet capture on {self.interface}.")
 
 
     def parse_tcpdump_line(self, line):
@@ -113,8 +94,22 @@ class PacketCaptureThread(threading.Thread):
             if not line.strip():
                 return None
 
+            # Debug: Print raw tcpdump line
+            if "TCP" in line or "UDP" in line or "ICMP" in line:
+                print(f"[DEBUG] Parsing tcpdump line: {line.strip()}")
+
             parts = line.split()
-            if len(parts) < 6 or parts[2] not in {"IP", "IP6"}:
+            if len(parts) < 6:
+                return None
+
+            # Find IP protocol marker
+            ip_index = -1
+            for i, part in enumerate(parts):
+                if part in {"IP", "IP6"}:
+                    ip_index = i
+                    break
+            
+            if ip_index == -1:
                 return None
 
             # Timestamp parsing with microseconds fallback
@@ -125,8 +120,8 @@ class PacketCaptureThread(threading.Thread):
                 try:
                     timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
                 except ValueError:
-                    print(f"Timestamp parse failed: {line.strip()}")
-                    return None
+                    print(f"[DEBUG] Timestamp parse failed: {timestamp_str}")
+                    timestamp = datetime.now()
 
             # Initialize with default severity
             protocol = None
@@ -134,32 +129,26 @@ class PacketCaptureThread(threading.Thread):
             source_ip, source_port = None, None
             dest_ip, dest_port = None, None
             flags = {}
-            details = line
+            details = line.strip()
 
-            # Extract IPs and ports
-            src_full = parts[3]
-            dst_full = parts[5].rstrip(':')
+            # --- Correction ici : Séparation robuste IP/port ---
+            def split_ip_port(ip_port_str):
+                # Gère les cas du type "192.168.0.108.57738"
+                if ip_port_str.count('.') >= 4:
+                    ip, port = ip_port_str.rsplit('.', 1)
+                    if port.isdigit():
+                        return ip, int(port)
+                    else:
+                        return ip_port_str, None
+                return ip_port_str, None
 
-            # Source parsing with enhanced port handling
-            if '.' in src_full:
-                source_ip, _, source_port_str = src_full.rpartition('.')
-                try:
-                    source_port = int(source_port_str) if source_port_str.isdigit() else source_port_str
-                except ValueError:
-                    source_port = source_port_str
-            else:
-                source_ip = src_full
+            # Extract source and destination (they should be right after IP marker)
+            if ip_index + 1 < len(parts) and ip_index + 3 < len(parts):
+                src_full = parts[ip_index + 1]
+                dst_full = parts[ip_index + 3].rstrip(':')
 
-            # Destination parsing
-            if '.' in dst_full:
-                dest_ip, _, dest_port_str = dst_full.rpartition('.')
-                try:
-                    dest_port = int(dest_port_str) if dest_port_str.isdigit() else dest_port_str
-                except ValueError:
-                    dest_port = 0  # Default for non-numeric ports
-            else:
-                dest_ip = dst_full
-                dest_port = 0
+                source_ip, source_port = split_ip_port(src_full)
+                dest_ip, dest_port = split_ip_port(dst_full)
 
             # Protocol and flags detection
             if "TCP" in line or any(f in line for f in ["Flags", "S ", "F ", "R ", "P ", "U ", "ack "]):
@@ -181,66 +170,61 @@ class PacketCaptureThread(threading.Thread):
                         severity = "HIGH"
                     elif flags.get('SYN') and not flags.get('ACK'):
                         severity = "MEDIUM"
+                        print(f"[DEBUG] Detected SYN packet: {source_ip}:{source_port} -> {dest_ip}:{dest_port}")
                 else:
                     # Fallback flag detection
                     flags = {
-                        'SYN': 'S' in line,
-                        'FIN': 'F' in line,
-                        'RST': 'R' in line,
-                        'PSH': 'P' in line,
-                        'URG': 'U' in line,
-                        'ACK': 'ack' in line.lower() or '.' in line
+                        'SYN': ' S ' in line or line.endswith(' S'),
+                        'FIN': ' F ' in line or line.endswith(' F'),
+                        'RST': ' R ' in line or line.endswith(' R'),
+                        'PSH': ' P ' in line or line.endswith(' P'),
+                        'URG': ' U ' in line or line.endswith(' U'),
+                        'ACK': 'ack' in line.lower() or ' . ' in line
                     }
 
             elif "UDP" in line:
                 protocol = "UDP"
-                # High severity for UDP floods
-                if "length" in line and int(line.split("length")[1].split()[0]) > 1000:
+                # Extract UDP length for flood detection
+                length_match = re.search(r"length (\d+)", line)
+                if length_match and int(length_match.group(1)) > 1000:
                     severity = "HIGH"
 
             elif "ICMP" in line:
                 protocol = "ICMP"
-                icmp_type = re.search(r"ICMP (.*?),", line)
-                if icmp_type:
-                    details = f"ICMP {icmp_type.group(1)}"
-                    if "unreachable" in icmp_type.group(1).lower():
+                icmp_match = re.search(r"ICMP (.*?),", line)
+                if icmp_match:
+                    details = f"ICMP {icmp_match.group(1)}"
+                    if "unreachable" in icmp_match.group(1).lower():
                         severity = "MEDIUM"
 
             # Create PacketData object with all fields
             if protocol and source_ip and dest_ip:
-                return PacketData(
+                packet_data = PacketData(
                     timestamp=timestamp,
                     protocol=protocol,
                     source_ip=source_ip,
                     source_port=source_port,
                     destination_ip=dest_ip,
-                    destination_port=dest_port,
+                    destination_port=dest_port or 0,
                     flags=flags,
-                    severity=severity,  # Included in the return object
+                    severity=severity,
                     details=details
                 )
+                print(f"[DEBUG] Successfully parsed packet: {packet_data}")
+                return packet_data
 
             return None
 
         except Exception as e:
-            print(f"Parser error in line '{line[:50]}...': {str(e)}")
+            print(f"[ERROR] Parser error in line '{line[:100]}...': {str(e)}")
             return None
+
 
     def run_pfring_capture(self):
         # This method is a placeholder for PF_RING based capture logic.
-        # It is currently NOT USED as PF_RING is not integrated.
-        # PF_RING would offer higher performance packet capture by bypassing the kernel's networking stack.
         print(f"{self.getName()}: PF_RING direct capture method called but not implemented/available.")
-        # If this were implemented, it would involve:
-        # - A loop similar to run_tcpdump_capture but using pf_socket.recv() or similar.
-        # - Parsing raw packet bytes (e.g., Ethernet frames, IP headers, TCP/UDP segments).
-        #   Libraries like 'dpkt' or 'scapy' could be used for this, or manual parsing for extreme performance.
-        # - Populating PacketData from these headers.
-        # - Handling the stop_event to terminate the loop gracefully.
-        self.use_pfring = False # Ensure this remains false as PF_RING is not active.
-        if self.pf_socket: # Hypothetical cleanup for a PF_RING socket.
-            # self.pf_socket.shutdown() # Example: Actual PF_RING API call might differ.
-            # self.pf_socket.close()
+        self.use_pfring = False
+        if self.pf_socket:
             print(f"{self.getName()}: Hypothetical PF_RING socket closed.")
 
 
@@ -252,84 +236,81 @@ class PacketCaptureThread(threading.Thread):
         """
         print(f"{self.getName()}: Starting tcpdump capture on interface '{self.interface}'...")
         
-        # tcpdump command construction:
-        # - sudo: Required for capturing on most interfaces, unless specific capabilities (e.g., CAP_NET_RAW, CAP_NET_ADMIN) 
-        #         are set for the tcpdump executable or the user running the script. This is a security consideration.
-        # - -i {self.interface}: Specify the network interface to capture from (e.g., 'eth0', 'lo').
-        # - -l: Line-buffer output. This is crucial for reading output line by line from the subprocess in real-time.
-        # - -n: No name resolution (show IPs and ports as numbers, avoids potentially slow DNS lookups).
-        # - -tttt: Absolute timestamp format (YYYY-MM-DD HH:MM:SS.ffffff), good for precise timing of packets.
-        # - 'tcp or udp or icmp': Berkeley Packet Filter (BPF) expression to capture only TCP, UDP, or ICMP packets, 
-        #                         which are the primary protocols relevant for common scan detection.
-        cmd = ["sudo", "tcpdump", "-i", self.interface, "-l", "-n", "-tttt", "tcp or udp or icmp"]
+        # Updated tcpdump command for better packet capture on wlp2s0
+        # Removed network filter to capture all traffic on the interface
+        # Added -s 0 to capture full packets
+        # Simplified filter to catch more packets
+        cmd = [
+            "sudo", "tcpdump", 
+            "-i", self.interface,    # Interface
+            "-l",                    # Line buffered
+            "-n",                    # No name resolution
+            "-tttt",                 # Absolute timestamp
+            "-s", "0",              # Capture full packets
+            "tcp or udp or icmp"     # Simplified filter - no network restriction
+        ]
         
-        process = None # To hold the subprocess.Popen object for tcpdump.
+        print(f"[DEBUG] Running command: {' '.join(cmd)}")
+        
+        process = None
         try:
-            # Start the tcpdump process.
-            # stdout and stderr are piped to be read by this script.
-            # text=True decodes output as text (UTF-8 by default). bufsize=1 enables line buffering for stdout.
+            # Start the tcpdump process
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
             print(f"{self.getName()}: Tcpdump process started (PID: {process.pid}) on interface '{self.interface}'.")
 
-            # Read tcpdump output line by line as it becomes available.
-            # iter(process.stdout.readline, '') creates an iterator that calls readline until it returns an empty string 
-            # (which signifies that the tcpdump process has closed its stdout, e.g., upon termination).
+            # Read tcpdump output line by line
             for line in iter(process.stdout.readline, ''):
-                if self.stop_event.is_set(): # Check if termination is requested by the main application.
+                if self.stop_event.is_set():
                     print(f"{self.getName()}: Stop event received, breaking from tcpdump loop.")
-                    break # Exit the loop to allow the thread to terminate gracefully.
+                    break
                 
-                packet_info = self.parse_tcpdump_line(line.strip()) # Parse the captured line.
-                if packet_info:
-                    # If parsing is successful, put the packet data (as a dictionary) onto the shared data_queue.
-                    # The DetectionEngine thread will pick it up from this queue for analysis.
-                    self.data_queue.put(packet_info.to_dict()) 
+                if line.strip():  # Only process non-empty lines
+                    packet_info = self.parse_tcpdump_line(line.strip())
+                    if packet_info:
+                        # Put packet data onto queue
+                        packet_dict = packet_info.to_dict()
+                        self.data_queue.put(packet_dict)
+                        print(f"[DEBUG] Packet queued: {packet_dict['source_ip']}:{packet_dict['source_port']} -> {packet_dict['destination_ip']}:{packet_dict['destination_port']} [{packet_dict['protocol']}]")
             
-            # After the loop, check if the tcpdump process exited prematurely (i.e., not due to stop_event).
-            # process.poll() returns the exit code if the process has terminated, or None otherwise.
+            # Check if tcpdump exited prematurely
             if process.poll() is not None and not self.stop_event.is_set():
                 print(f"{self.getName()}: Tcpdump process exited prematurely with code {process.returncode}.")
-                stderr_output = process.stderr.read() # Read any error messages from tcpdump's stderr.
+                stderr_output = process.stderr.read()
                 if stderr_output:
                     print(f"{self.getName()} tcpdump stderr:\n{stderr_output}")
 
         except FileNotFoundError:
-            # This exception occurs if 'tcpdump' (or 'sudo') command is not found in the system's PATH.
             print(f"{self.getName()}: Error - tcpdump command not found. Please ensure it's installed and in PATH.")
-            # Put an error message on the queue so the main app/engine is aware of this critical failure if needed.
             self.data_queue.put({"error": "tcpdump_not_found", "interface": self.interface})
         except PermissionError:
-            # This exception typically occurs if the script does not have sufficient privileges 
-            # to run tcpdump (e.g., trying to capture on 'eth0' without sudo).
-            print(f"{self.getName()}: Error - Permission denied to run tcpdump. Ensure sudo privileges or proper capabilities for tcpdump.")
+            print(f"{self.getName()}: Error - Permission denied to run tcpdump. Ensure sudo privileges.")
+            print(f"Try running: sudo setcap cap_net_raw,cap_net_admin=eip $(which tcpdump)")
             self.data_queue.put({"error": "tcpdump_permission_denied", "interface": self.interface})
         except Exception as e:
-            # Catch any other unexpected errors during tcpdump execution or setup.
             print(f"{self.getName()}: An error occurred during tcpdump capture: {e}")
             self.data_queue.put({"error": str(e), "interface": self.interface})
         finally:
-            # Cleanup: Ensure the tcpdump process is terminated if it's still running when this block is reached.
+            # Cleanup tcpdump process
             if process:
-                if process.poll() is None: # Check if process is still running.
+                if process.poll() is None:
                     print(f"{self.getName()}: Terminating tcpdump process (PID: {process.pid})...")
-                    process.terminate() # Send SIGTERM, allowing tcpdump to shut down gracefully (e.g., flush buffers).
+                    process.terminate()
                     try:
-                        process.wait(timeout=5) # Wait up to 5 seconds for graceful termination.
+                        process.wait(timeout=5)
                         print(f"{self.getName()}: Tcpdump process terminated.")
                     except subprocess.TimeoutExpired:
-                        # If tcpdump doesn't terminate gracefully within the timeout, force kill it with SIGKILL.
                         print(f"{self.getName()}: Tcpdump did not terminate gracefully, sending SIGKILL.")
-                        process.kill() 
-                        process.wait() # Ensure the process is reaped after SIGKILL.
+                        process.kill()
+                        process.wait()
                         print(f"{self.getName()}: Tcpdump process killed.")
-                else: # Process already exited.
+                else:
                     print(f"{self.getName()}: Tcpdump process (PID: {process.pid}) already exited with code {process.returncode}.")
                 
-                # Close stdout/stderr pipes associated with the process to free resources.
+                # Close pipes
                 if process.stdout:
                     process.stdout.close()
                 if process.stderr:
-                    remaining_stderr = process.stderr.read() # Read any final error messages.
+                    remaining_stderr = process.stderr.read()
                     if remaining_stderr:
                         print(f"{self.getName()} remaining tcpdump stderr:\n{remaining_stderr}")
                     process.stderr.close()
@@ -338,82 +319,66 @@ class PacketCaptureThread(threading.Thread):
 
     def run(self):
         """Main execution method for the thread."""
-        # This thread's primary role is to start and manage the packet capture mechanism.
-        # Currently, PF_RING is not used (self.use_pfring is False), so it directly calls the tcpdump capture method.
-        # if self.use_pfring and self.pf_socket: # This condition is currently always false.
-        #     self.run_pfring_capture() # Hypothetical call to PF_RING capture logic.
-        # else:
-        #     if not self.use_pfring: # This will always be true in the current implementation.
-        #         print(f"{self.getName()}: PF_RING not used/failed, proceeding with tcpdump.")
-        #     self.run_tcpdump_capture() # Execute tcpdump based capture.
-        
-        print(f"{self.getName()}: Defaulting to tcpdump capture method as PF_RING is not active.")
-        self.run_tcpdump_capture() # Start the tcpdump capture process.
+        print(f"{self.getName()}: Starting packet capture on interface '{self.interface}'")
+        self.run_tcpdump_capture()
         print(f"{self.getName()}: Finished run method. Thread will exit.")
 
 
     def stop(self):
         """Signals the thread to stop its execution."""
-        # This method is called from the main application thread (e.g., via an atexit handler in app.py)
-        # to request the capture thread to terminate its operations gracefully.
         print(f"{self.getName()}: Stopping packet capture thread for interface '{self.interface}'...")
-        self.stop_event.set() # Set the threading.Event. Loops and processes within the run() method should check this event.
+        self.stop_event.set()
 
 if __name__ == '__main__':
-    # This block is for testing the PacketCaptureThread independently of the main Flask application.
-    # It demonstrates how to instantiate and start the thread, simulate packet capture for a short duration, 
-    # retrieve packets from the queue, and then stop the thread.
-    # To run this test effectively, especially with a real interface like 'eth0',
-    # you would typically need to execute this script with sudo: `sudo python ids_capture.py`.
-    print("Starting packet capture test (run this script with sudo if using a real interface like 'eth0')...")
+    # Test the PacketCaptureThread
+    print("Starting packet capture test on wlp2s0...")
+    print("Make sure to run this script with sudo: sudo python ids_capture.py")
     test_q = queue.Queue()
     capture_stop_event = threading.Event()
     
-    # Using 'lo' for loopback interface for testing without needing external traffic or full sudo on some systems.
-    # For capturing actual network traffic, 'eth0' (or your specific active interface) would be used.
-    # If 'lo' doesn't show traffic, you might need to generate some (e.g., ping localhost).
-    # The user needs to ensure 'tcpdump' is installed.
-    # On a typical Linux system: sudo apt-get install tcpdump
-    
-    # Test with loopback interface 'lo'
-    # If you have permission issues even with 'lo', it might be due to AppArmor/SELinux or other restrictions.
-    # Running the script itself with `sudo python ids_capture.py` is the most straightforward way for tcpdump.
-    interface_to_test = "lo" 
+    # Test with wlp2s0 interface
+    interface_to_test = "wlp2s0" 
     print(f"Attempting to capture on interface: {interface_to_test}")
-    print("If this hangs or shows errors, ensure tcpdump is installed and you have permissions.")
-    print("You might need to run: 'sudo python ids_capture.py'")
+    print("You can test by running: sudo nmap -sS -p 80,443,22 192.168.0.108")
 
     capture_thread = PacketCaptureThread(test_q, interface=interface_to_test, stop_event=capture_stop_event)
     capture_thread.start()
 
     try:
         # Let it run for a bit to capture some packets
-        # Try pinging localhost in another terminal: ping -c 5 localhost
-        print("Capture thread started. Listening for packets for up to 20 seconds...")
-        print("Generate some traffic on the 'lo' interface (e.g., 'ping localhost') to see output.")
+        print("Capture thread started. Listening for packets for up to 30 seconds...")
+        print("Run 'sudo nmap -sS -p 80,443,22 192.168.0.108' in another terminal to generate traffic.")
         
-        for i in range(20): # Check queue every second for 20 seconds
+        packet_count = 0
+        for i in range(30):  # Check queue every second for 30 seconds
             if not capture_thread.is_alive() and test_q.empty():
                 print("Capture thread died unexpectedly and queue is empty.")
                 break
             try:
-                packet_dict = test_q.get(timeout=1) # Wait 1 second for a packet
-                print(f"[{datetime.now()}] Got packet from queue: {packet_dict}")
+                packet_dict = test_q.get(timeout=1)  # Wait 1 second for a packet
+                packet_count += 1
+                print(f"[{datetime.now()}] Packet #{packet_count}: {packet_dict['source_ip']}:{packet_dict['source_port']} -> {packet_dict['destination_ip']}:{packet_dict['destination_port']} [{packet_dict['protocol']}] Flags: {packet_dict['flags']}")
             except queue.Empty:
-                if i % 5 == 0: # Print a message every 5 seconds if queue is empty
-                    print(f"Queue empty at {i+1}s, no packet received in the last second...")
+                if i % 10 == 0:  # Print a message every 10 seconds if queue is empty
+                    print(f"Queue empty at {i+1}s, waiting for packets...")
             if capture_stop_event.is_set():
                 print("Stop event was set externally during test loop.")
                 break
         
+        print(f"\nTotal packets captured: {packet_count}")
+        
+        # Drain any remaining packets
         if not test_q.empty():
-            print("Draining any remaining packets from queue after test loop...")
+            print("Draining any remaining packets from queue...")
+            remaining = 0
             while not test_q.empty():
                 try:
                     packet_dict = test_q.get_nowait()
-                    print(f"[{datetime.now()}] Drained packet: {packet_dict}")
+                    remaining += 1
+                    print(f"Drained packet #{packet_count + remaining}: {packet_dict['source_ip']} -> {packet_dict['destination_ip']}")
                 except queue.Empty:
                     break
+            print(f"Drained {remaining} additional packets.")
         
     except KeyboardInterrupt:
         print("\nUser interrupted test with Ctrl+C.")
@@ -422,9 +387,9 @@ if __name__ == '__main__':
         if not capture_stop_event.is_set():
             capture_stop_event.set()
         
-        capture_thread.join(timeout=10) # Increased timeout for join
+        capture_thread.join(timeout=10)
         if capture_thread.is_alive():
-            print("Capture thread did not join cleanly. It might be stuck in the tcpdump process handling.")
+            print("Capture thread did not join cleanly.")
         else:
             print("Capture thread joined successfully.")
         print("Packet capture test finished.")
