@@ -1,0 +1,5 @@
+{
+    "training_timestamp_utc": "2025-05-28T14:36:08.733770+00:00",
+    "mljar_results_path": "/app/mljar_results",
+    "feature_importance_status": "Feature importances not directly extracted. Check MLJAR reports in 'mljar_results'."
+}

@@ -3,9 +3,14 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 from functools import wraps
+import sys # Added for sys.stderr
+import threading
+from packet_capturer import start_capture as start_packet_capture
+from detection_engine import DetectionEngine
+from log_manager import save_alert_to_db
 
 app = Flask(__name__)
 CORS(app)
@@ -32,7 +37,24 @@ class User(UserMixin, db.Model):
     password = db.Column(db.Text, nullable=False)
     role = db.Column(db.String(20), nullable=False)
     accepted_terms = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+# MODELE IDSLog
+class IDSLog(db.Model):
+    __tablename__ = 'ids_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    source_ip = db.Column(db.String(45), nullable=False)
+    destination_ip = db.Column(db.String(45), nullable=False)
+    source_port = db.Column(db.Integer, nullable=True)
+    destination_port = db.Column(db.Integer, nullable=True)
+    protocol = db.Column(db.String(10), nullable=False)
+    scan_type = db.Column(db.String(50), nullable=True)
+    severity = db.Column(db.String(10), nullable=True) 
+    details = db.Column(db.Text, nullable=True)
+
+    def __repr__(self):
+        return f'<IDSLog {self.id}>'
 
 # CHARGEMENT DE L'UTILISATEUR POUR FLASK-LOGIN
 @login_manager.user_loader
@@ -164,15 +186,93 @@ def user():
 def pcap():
     return render_template('pcap.html')
 
+# API ROUTE FOR LOGS
+@app.route('/api/logs', methods=['GET'])
+@login_required
+def get_api_logs():
+    try:
+        logs_db = IDSLog.query.order_by(IDSLog.timestamp.desc()).all()
+        logs_list = []
+        for log_entry in logs_db:
+            # Ensure timestamp is timezone-aware (UTC) before formatting
+            timestamp_utc = log_entry.timestamp
+            if timestamp_utc.tzinfo is None:
+                timestamp_utc = timestamp_utc.replace(tzinfo=timezone.utc)
+            else:
+                timestamp_utc = timestamp_utc.astimezone(timezone.utc)
+
+            logs_list.append({
+                'id': log_entry.id,
+                'timestamp': timestamp_utc.isoformat().replace('+00:00', 'Z'),
+                'source_ip': log_entry.source_ip,
+                'destination_ip': log_entry.destination_ip,
+                'source_port': log_entry.source_port,
+                'destination_port': log_entry.destination_port,
+                'protocol': log_entry.protocol,
+                'scan_type': log_entry.scan_type,
+                'severity': log_entry.severity,
+                'details': log_entry.details
+            })
+        return jsonify(logs_list)
+    except Exception as e:
+        # Log the exception for server-side debugging
+        print(f"Error fetching logs for /api/logs: {e}") 
+        # import traceback
+        # traceback.print_exc()
+        return jsonify({"error": "Failed to retrieve logs"}), 500
 
 # PAGE 404 PERSONNALISÉE
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html'), 404
 
+# --- IDS Integration ---
+detection_engine_instance = None
+ids_thread_running = False
+ids_stop_event = threading.Event() # This event is not yet used by packet_capturer to stop tcpdump
+
+def process_packet_callback(packet_data):
+    global detection_engine_instance
+    if detection_engine_instance and packet_data: # Ensure engine is initialized and data is valid
+        try:
+            alerts = detection_engine_instance.process_packet(packet_data)
+            if alerts:
+                with app.app_context(): # Ensure app context for db operations
+                    for alert in alerts:
+                        print(f"ALERT DETECTED by IDS: {alert['scan_type']} from {alert['source_ip']}") # Server log
+                        save_alert_to_db(alert, app) # 'app' is the Flask app instance
+        except Exception as e:
+            print(f"Error processing packet or saving alert: {e}", file=sys.stderr)
+
+def start_ids_thread():
+    global detection_engine_instance, ids_thread_running, ids_stop_event
+    if ids_thread_running:
+        print("IDS thread already running.")
+        return
+
+    print("Initializing and starting IDS thread...")
+    # Initialize the engine when the thread starts, ensuring it's fresh if thread is ever restarted (not current design)
+    detection_engine_instance = DetectionEngine() 
+    ids_stop_event.clear() 
+
+    # The current packet_capturer.start_packet_capture is blocking and runs tcpdump.
+    # It does not currently accept ids_stop_event for a graceful shutdown of tcpdump.
+    # The thread is set as a daemon, so it will exit when the main Flask app exits.
+    thread = threading.Thread(target=start_packet_capture, args=(process_packet_callback,), daemon=True)
+    thread.start()
+    ids_thread_running = True
+    print("IDS thread started.")
 
 # INIT BDD ET LANCEMENT
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
+    
+    # Start the IDS packet capture and detection thread
+    start_ids_thread() 
+    
+    # Note: use_reloader=False is important when running background threads with Flask's dev server.
+    # The daemon=True on the IDS thread means it will terminate when the main application exits.
+    # A more robust stop mechanism for the tcpdump process within packet_capturer would
+    # involve managing the subprocess.Popen object directly to send a SIGINT/SIGTERM.
+    app.run(debug=True, use_reloader=False)
