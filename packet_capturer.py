@@ -1,230 +1,355 @@
+#!/usr/bin/env python3
 import subprocess
 from datetime import datetime, timezone
 import re
-import sys # For flushing output
+import sys
+import netifaces
+import logging
+import signal
+import os
+import threading
+import time
 
-# Define the target interface (hardcoded as netifaces is unavailable)
-# TODO: Replace with dynamic interface detection if netifaces or similar becomes available
-INTERFACE = "wlp2s0" # Common name for wireless interfaces, but may vary.
-# For testing in environments where wlp2s0 might not exist,
-# consider using "any" or "lo" if appropriate, but "any" can be very verbose.
-# INTERFACE = "any" # Example: use "any" for all interfaces, requires appropriate permissions
+# Configuration du logging
+LOG_FILENAME = "packet_capturer.log"
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler(LOG_FILENAME),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger('PacketCapturer')
 
-def parse_tcpdump_line(line_str: str) -> dict | None:
-    """
-    Parses a single line of tcpdump output.
+# Variables globales
+INTERFACE = None
+PACKET_COUNT = 0
+UNPARSED_COUNT = 0
+TCPDUMP_PACKET_STATS = {
+    "captured": 0,
+    "received_by_filter": 0,
+    "dropped_by_kernel": 0
+}
 
-    Expected tcpdump format (-tttt -n -l):
-    YYYY-MM-DD HH:MM:SS.ffffff IP [source_ip].[source_port] > [dest_ip].[dest_port]: Flags [flags], seq ..., ack ..., win ..., options ..., length ...
-    YYYY-MM-DD HH:MM:SS.ffffff IP6 [source_ip].[source_port] > [dest_ip].[dest_port]: Flags [flags], ...
-    YYYY-MM-DD HH:MM:SS.ffffff ARP, Request who-has [target_ip] tell [sender_ip], length ...
-    YYYY-MM-DD HH:MM:SS.ffffff ICMP [source_ip] > [dest_ip]: echo request, ...
+# Gestion des signaux
+shutdown_flag = threading.Event()
+tcpdump_process = None
 
-    Returns a dictionary with parsed fields or None if parsing fails.
-    """
+def signal_handler(signum, frame):
+    logger.info(f"\nSignal {signum} reçu. Arrêt en cours...")
+    shutdown_flag.set()
+    if tcpdump_process:
+        try:
+            tcpdump_process.terminate()
+        except:
+            pass
+    print_summary()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+def print_summary():
+    """Affiche un résumé des statistiques de capture"""
+    print("\n" + "="*50)
+    print("Résumé de la capture:")
+    print(f"- Paquets traités: {PACKET_COUNT}")
+    print(f"- Lignes non parsées: {UNPARSED_COUNT}")
+    if TCPDUMP_PACKET_STATS['captured'] > 0:
+        print("\nStatistiques tcpdump:")
+        print(f"- Capturés par tcpdump: {TCPDUMP_PACKET_STATS['captured']}")
+        print(f"- Reçus par le filtre: {TCPDUMP_PACKET_STATS['received_by_filter']}")
+        print(f"- Perdus par le kernel: {TCPDUMP_PACKET_STATS['dropped_by_kernel']}")
+    print("="*50 + "\n")
+
+def get_default_interface():
+    """Récupère l'interface réseau par défaut"""
+    try:
+        gateways = netifaces.gateways()
+        if 'default' in gateways and netifaces.AF_INET in gateways['default']:
+            return gateways['default'][netifaces.AF_INET][1]
+        return None
+    except Exception as e:
+        logger.warning(f"Erreur récupération interface: {e}")
+        return None
+
+def check_interface_exists(interface_name):
+    """Vérifie si l'interface existe"""
+    try:
+        return interface_name in netifaces.interfaces()
+    except Exception as e:
+        logger.error(f"Erreur vérification interface: {e}")
+        return False
+
+def list_available_interfaces():
+    """Liste les interfaces disponibles"""
+    try:
+        interfaces = netifaces.interfaces()
+        logger.info(f"Interfaces disponibles: {', '.join(interfaces)}")
+        return interfaces
+    except Exception as e:
+        logger.error(f"Erreur listage interfaces: {e}")
+        return []
+
+# Initialisation de l'interface
+INTERFACE = get_default_interface()
+if not INTERFACE:
+    available_interfaces = list_available_interfaces()
+    common_interfaces = ['eth0', 'wlan0', 'wlp2s0', 'enp0s3', 'en0']
+    for iface in common_interfaces:
+        if iface in available_interfaces:
+            INTERFACE = iface
+            break
+    if not INTERFACE and available_interfaces:
+        INTERFACE = available_interfaces[0]
+
+if INTERFACE and not check_interface_exists(INTERFACE):
+    logger.warning(f"Interface '{INTERFACE}' non trouvée, utilisation de 'any'")
+    INTERFACE = "any"
+
+logger.info(f"Interface sélectionnée: {INTERFACE}")
+
+def parse_tcpdump_line(line_str):
+    """Parse une ligne de sortie tcpdump"""
+    global UNPARSED_COUNT
+    
     line_str = line_str.strip()
     if not line_str:
         return None
 
-    # General pattern for IP packets (TCP/UDP/ICMP)
-    # It captures timestamp, protocol (IP/IP6), src/dst IPs and ports, and flags for TCP
-    # Example TCP: 2024-05-28 15:10:30.123456 IP 192.168.1.10.54321 > 192.168.1.20.80: Flags [S.], seq 123, ack 0, win 65535, options [mss 1460,sackOK,TS val 10 ecr 0,nop,wscale 7], length 0
-    # Example UDP: 2024-05-28 15:10:30.234567 IP 10.0.0.5.123 > 10.0.0.6.53: 1+ A? example.com. (30)
-    # Example ICMP: 2024-05-28 15:10:30.345678 IP 172.16.0.1 > 172.16.0.2: ICMP echo request, id 1, seq 1, length 64
-    ip_pattern = re.compile(
-        r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6})\s+"  # Timestamp
-        r"(?P<l2_proto>IP6?)\s+"                                         # L2 Proto (IP or IP6)
-        r"(?P<source_ip>[\w.:-]+?)"                                     # Source IP (allow for IPv6, hostnames if -n not fully effective)
-        r"(?:\.(?P<source_port>\d+))?"                                  # Optional Source Port
-        r"\s+>\s+"
-        r"(?P<destination_ip>[\w.:-]+?)"                               # Destination IP
-        r"(?:\.(?P<destination_port>\d+))?:"                            # Optional Destination Port
-        r"(?:\s+Flags\s+\[(?P<flags>[^\]]+)\],)?"                       # Optional TCP Flags
-        r".*?\s+(?P<protocol>TCP|UDP|ICMP|ICMPv6)"                      # Protocol (deduced later if not here)
+    # Patterns de regex optimisés
+    tcp_udp_pattern = re.compile(
+        r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6})\s+"
+        r"(?P<l2_proto>IP6?)\s+"
+        r"(?P<source_ip>[\w.:-]+?)(?:\.(?P<source_port>\d+))?\s+>\s+"
+        r"(?P<destination_ip>[\w.:-]+?)(?:\.(?P<destination_port>\d+))?:"
+        r"(?:\s+Flags\s+\[(?P<flags>[^\]]+)\])?.*?"
     )
 
-    # More specific patterns if the general one is too broad or misses cases
-    # This simplified pattern tries to capture the protocol from the end part if possible
-    # and handles cases where flags might not be present or ports are not applicable (e.g. ICMP)
-    packet_re = re.compile(
-        r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6})\s+" # Timestamp YYYY-MM-DD HH:MM:SS.ffffff
-        r"IP6?\s+"                                                       # IP or IP6
-        r"(?P<source_ip>[\w.:-]+?)"                                     # Source IP (allow for IPv6 or hostnames if -n not fully effective)
-        r"(?:\.(?P<source_port>\d+))?"                                  # Optional Source Port for TCP/UDP
-        r"\s+>\s+"
-        r"(?P<destination_ip>[\w.:-]+?)"                               # Destination IP
-        r"(?:\.(?P<destination_port>\d+))?:"                            # Optional Destination Port for TCP/UDP
-        r"(?:.*?Flags\s+\[(?P<tcp_flags>[^\]]+)\],)?"                   # Optional TCP Flags (e.g., [S.], [P.], [F.], [R.])
-        r".*?(?P<protocol_guess>TCP|UDP|ICMPv?6?)(?:,|\s|$)"            # Protocol guess (TCP, UDP, ICMP, ICMP6, ICMPv6)
+    icmp_pattern = re.compile(
+        r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6})\s+"
+        r"(?P<l2_proto>IP6?)\s+"
+        r"(?P<source_ip>[\w.:-]+)\s+>\s+(?P<destination_ip>[\w.:-]+):\s+(?:ICMP|ICMPv6)"
     )
-    
-    # ARP pattern
-    # Example: 2024-05-28 15:10:30.456789 ARP, Request who-has 192.168.1.1 tell 192.168.1.100, length 46
+
     arp_pattern = re.compile(
         r"^(?P<timestamp>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6})\s+"
-        r"ARP,\s+"
-        r"(?:Request who-has\s+(?P<arp_target_ip>[\w.:-]+)\s+tell\s+(?P<arp_sender_ip>[\w.:-]+)|" # Request
-        r"Reply\s+(?P<arp_is_at_ip>[\w.:-]+)\s+is-at\s+[\w:]+)"                                   # Reply
+        r"ARP,\s+(?:Request who-has\s+(?P<arp_target_ip>[\w.:-]+)\s+tell\s+(?P<arp_sender_ip>[\w.:-]+)|"
+        r"Reply\s+(?P<arp_is_at_ip>[\w.:-]+)\s+is-at\s+[\w:]+)"
     )
 
-    match = packet_re.match(line_str)
+    # Parsing TCP/UDP
+    match = tcp_udp_pattern.match(line_str)
     if match:
         data = match.groupdict()
         try:
-            dt_obj = datetime.strptime(data['timestamp'], '%Y-%m-%d %H:%M:%S.%f')
-            dt_obj_utc = dt_obj.replace(tzinfo=timezone.utc) # Assume local time is UTC as per tcpdump -tttt
-        except ValueError:
-            # If timestamp parsing fails, this line is likely not a valid packet entry
+            dt_obj = datetime.strptime(data['timestamp'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=timezone.utc)
+            
+            protocol = "TCP" if data.get('flags') else "UDP"
+            flags = None
+            if data.get('flags'):
+                flags_present = []
+                flag_map = {'S': 'SYN', 'F': 'FIN', 'R': 'RST', 'P': 'PSH', '.': 'ACK', 'U': 'URG'}
+                for f, name in flag_map.items():
+                    if f in data['flags']:
+                        flags_present.append(name)
+                flags = "|".join(flags_present) if flags_present else None
+
+            return {
+                "timestamp": dt_obj,
+                "source_ip": data['source_ip'],
+                "destination_ip": data['destination_ip'],
+                "source_port": int(data['source_port']) if data['source_port'] else None,
+                "destination_port": int(data['destination_port']) if data['destination_port'] else None,
+                "protocol": protocol,
+                "flags": flags
+            }
+        except Exception as e:
+            logger.debug(f"Erreur parsing TCP/UDP: {e}")
+            UNPARSED_COUNT += 1
             return None
 
-        # Normalize TCP flags
-        raw_flags = data.get('tcp_flags')
-        normalized_flags = None
-        if raw_flags:
-            # Common flags: S (SYN), P (PSH), F (FIN), R (RST), . (ACK)
-            # We want to make them more readable, e.g., S. -> SA (SYN-ACK), P. -> PA (PSH-ACK)
-            # Order: S F R P A U E C (standard order for display)
-            flags_present = []
-            if 'S' in raw_flags: flags_present.append('S')
-            if 'F' in raw_flags: flags_present.append('F')
-            if 'R' in raw_flags: flags_present.append('R')
-            if 'P' in raw_flags: flags_present.append('P')
-            if '.' in raw_flags: flags_present.append('A') # ACK
-            # Less common, but good to note
-            if 'U' in raw_flags: flags_present.append('U') # URG
-            if 'E' in raw_flags: flags_present.append('E') # ECE
-            if 'C' in raw_flags: flags_present.append('C') # CWR
-            
-            normalized_flags = "".join(flags_present) if flags_present else None
+    # Parsing ICMP
+    icmp_match = icmp_pattern.match(line_str)
+    if icmp_match:
+        data = icmp_match.groupdict()
+        try:
+            dt_obj = datetime.strptime(data['timestamp'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=timezone.utc)
+            return {
+                "timestamp": dt_obj,
+                "source_ip": data['source_ip'],
+                "destination_ip": data['destination_ip'],
+                "source_port": None,
+                "destination_port": None,
+                "protocol": "ICMPv6" if data['l2_proto'] == "IP6" else "ICMP",
+                "flags": None
+            }
+        except Exception as e:
+            logger.debug(f"Erreur parsing ICMP: {e}")
+            UNPARSED_COUNT += 1
+            return None
 
-
-        return {
-            "timestamp": dt_obj_utc,
-            "source_ip": data['source_ip'],
-            "destination_ip": data['destination_ip'],
-            "source_port": int(data['source_port']) if data['source_port'] else None,
-            "destination_port": int(data['destination_port']) if data['destination_port'] else None,
-            "protocol": data['protocol_guess'].upper().replace("V6",""), # Normalize ICMPV6 to ICMP
-            "flags": normalized_flags
-        }
-
+    # Parsing ARP
     arp_match = arp_pattern.match(line_str)
     if arp_match:
         data = arp_match.groupdict()
         try:
-            dt_obj = datetime.strptime(data['timestamp'], '%Y-%m-%d %H:%M:%S.%f')
-            dt_obj_utc = dt_obj.replace(tzinfo=timezone.utc)
-        except ValueError:
+            dt_obj = datetime.strptime(data['timestamp'], '%Y-%m-%d %H:%M:%S.%f').replace(tzinfo=timezone.utc)
+            source_ip = data.get('arp_sender_ip') or data.get('arp_is_at_ip')
+            dest_ip = data.get('arp_target_ip') or "Broadcast"
+            return {
+                "timestamp": dt_obj,
+                "source_ip": source_ip,
+                "destination_ip": dest_ip,
+                "source_port": None,
+                "destination_port": None,
+                "protocol": "ARP",
+                "flags": None
+            }
+        except Exception as e:
+            logger.debug(f"Erreur parsing ARP: {e}")
+            UNPARSED_COUNT += 1
             return None
-        
-        # For ARP, source/destination IP depends on request/reply type
-        source_ip = data.get('arp_sender_ip')
-        dest_ip = data.get('arp_target_ip')
-        if not source_ip and data.get('arp_is_at_ip'): # This is a reply, the "is_at_ip" is the source
-            # In an ARP reply "X is at MAC", X is the source_ip in the context of who is providing info
-            # However, tcpdump output for reply "192.168.1.1 is-at aa:bb:cc:dd:ee:ff"
-            # Here, 192.168.1.1 is effectively the "source" of the information.
-            # The "destination" is implicit (the requester). For simplicity, we'll use what's available.
-            source_ip = data.get('arp_is_at_ip')
-            dest_ip = "Broadcast" # ARP replies are often broadcast or to a specific MAC not easily parsed here
 
-        return {
-            "timestamp": dt_obj_utc,
-            "source_ip": source_ip,
-            "destination_ip": dest_ip,
-            "source_port": None,
-            "destination_port": None,
-            "protocol": "ARP",
-            "flags": None
-        }
-    
-    # If the line is a tcpdump startup/shutdown message or unparsed
-    if "listening on" in line_str or "bytes captured" in line_str or "packets captured" in line_str:
-        print(f"Ignoring tcpdump message: {line_str}", file=sys.stderr)
-        return None
-
-    print(f"Unparsed line: {line_str}", file=sys.stderr)
+    UNPARSED_COUNT += 1
+    if UNPARSED_COUNT <= 10 or UNPARSED_COUNT % 100 == 0:
+        logger.debug(f"Ligne non parsée #{UNPARSED_COUNT}: {line_str[:100]}{'...' if len(line_str) > 100 else ''}")
     return None
 
-
-def start_capture(callback_function):
-    """
-    Starts packet capture using tcpdump and processes each packet line.
-    """
-    # Command: sudo tcpdump -i <interface> -l -n -tttt
-    # -l: Line buffer output (essential for real-time processing)
-    # -n: Don't convert addresses (IPs, ports) to names
-    # -tttt: Timestamp in YYYY-MM-DD HH:MM:SS.ffffff format
-    # Adding -q to reduce some verbosity, focusing on packet data
-    # tcpdump_command = ['sudo', 'tcpdump', '-i', INTERFACE, '-l', '-n', '-tttt', '-q']
-    # Sticking to original request flags
-    tcpdump_command = ['sudo', 'tcpdump', '-i', INTERFACE, '-l', '-n', '-tttt']
-    
-    print(f"Starting capture on interface {INTERFACE} with command: {' '.join(tcpdump_command)}", file=sys.stderr)
-    
+def check_tcpdump_availability():
+    """Vérifie si tcpdump est disponible"""
     try:
-        # Using Popen to manage the subprocess
-        process = subprocess.Popen(tcpdump_command, 
-                                   stdout=subprocess.PIPE, 
-                                   stderr=subprocess.PIPE,
-                                   text=True, # Decodes stdout/stderr as text
-                                   bufsize=1) # Line buffered
-
-        print("tcpdump process started. Waiting for output...", file=sys.stderr)
-
-        # Read output line by line
-        for line in iter(process.stdout.readline, ''):
-            if not line: # Should not happen with iter readline unless process ends
-                break
-            parsed_data = parse_tcpdump_line(line)
-            if parsed_data:
-                callback_function(parsed_data)
-            sys.stdout.flush() # Ensure data is sent to parent if any
-
-        # Check for errors after process ends
-        stderr_output = process.stderr.read()
-        if stderr_output:
-            print(f"tcpdump stderr: {stderr_output}", file=sys.stderr)
-        
-        process.stdout.close()
-        process.stderr.close()
-        process.wait()
-
-    except FileNotFoundError:
-        print(f"Error: tcpdump command not found. Please ensure tcpdump is installed and in PATH.", file=sys.stderr)
-    except PermissionError:
-        print(f"Error: Permission denied. tcpdump typically requires root privileges. Try running with sudo.", file=sys.stderr)
+        result = subprocess.run(['which', 'tcpdump'], capture_output=True, text=True)
+        if result.returncode != 0:
+            logger.error("tcpdump non installé")
+            return False
+            
+        result = subprocess.run(['sudo', '-n', 'tcpdump', '--version'], 
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            logger.error("Permissions sudo requises pour tcpdump")
+            return False
+            
+        return True
     except Exception as e:
-        print(f"An error occurred during packet capture: {e}", file=sys.stderr)
-    finally:
-        print("Packet capture stopped.", file=sys.stderr)
+        logger.error(f"Erreur vérification tcpdump: {e}")
+        return False
 
-# Example callback function
-def my_callback(packet_data):
-    """
-    Example callback function to process parsed packet data.
-    """
-    print(packet_data)
-
-if __name__ == '__main__':
-    print("Starting packet capturer script directly for testing...", file=sys.stderr)
-    # Note: This script needs to be run with sudo for tcpdump to work.
-    # Example: sudo python packet_capturer.py
-    # The 'sudo' is also included in the tcpdump_command list.
+def start_capture(callback):
+    """Démarre la capture réseau"""
+    global PACKET_COUNT, tcpdump_process, TCPDUMP_PACKET_STATS
     
-    # Check if INTERFACE is set to "wlp2s0" and provide a warning if so,
-    # as it's unlikely to exist in many test environments.
-    if INTERFACE == "wlp2s0":
-        print(f"Warning: INTERFACE is set to '{INTERFACE}'. This interface may not exist on your system.", file=sys.stderr)
-        print("You might need to change it to an active interface (e.g., 'eth0', 'en0', 'any', or 'lo').", file=sys.stderr)
-        print("If using 'any', be aware it captures on all interfaces and can be very verbose.", file=sys.stderr)
+    if not check_tcpdump_availability():
+        return
 
-    start_capture(my_callback)
+    tcpdump_command = [
+        "sudo", "tcpdump",
+        "-i", INTERFACE,
+        "-tttt", "-n", "-l",
+        "-B", "4096",
+        "ip or ip6 or arp"
+    ]
 
-# Placeholder for ml_trainer.py (This line was in the original template, removing as it's not relevant here)
-# (Placeholder for packet_capturer.py) # This was also in the original template
-# This file will be responsible for capturing network packets.
-# It will use python-libpcap and netifaces to achieve this. # Updated: Will use tcpdump via subprocess
-# Further details will be added as the project progresses.
-# (Placeholder for detection_engine.py) # Removing
-# (Placeholder for log_manager.py) # Removing
+    logger.info(f"Démarrage capture sur {INTERFACE}")
+    print(f"\nCapture en cours sur l'interface {INTERFACE}... (Ctrl+C pour arrêter)\n")
+    print("Exemples de paquets capturés:\n")
+
+    try:
+        tcpdump_process = subprocess.Popen(
+            tcpdump_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1,
+            universal_newlines=True,
+            encoding='utf-8',
+            errors='replace'
+        )
+
+        def monitor_stderr():
+            """Capture les statistiques de tcpdump depuis stderr"""
+            stats_pattern = re.compile(r"(\d+) packets? captured")
+            received_pattern = re.compile(r"(\d+) packets? received by filter")
+            dropped_pattern = re.compile(r"(\d+) packets? dropped by kernel")
+            
+            while not shutdown_flag.is_set() and tcpdump_process.poll() is None:
+                line = tcpdump_process.stderr.readline()
+                if line:
+                    line = line.strip()
+                    logger.debug(f"tcpdump: {line}")
+                    
+                    # Capture des statistiques
+                    match = stats_pattern.search(line)
+                    if match:
+                        TCPDUMP_PACKET_STATS['captured'] = int(match.group(1))
+                    
+                    match = received_pattern.search(line)
+                    if match:
+                        TCPDUMP_PACKET_STATS['received_by_filter'] = int(match.group(1))
+                    
+                    match = dropped_pattern.search(line)
+                    if match:
+                        TCPDUMP_PACKET_STATS['dropped_by_kernel'] = int(match.group(1))
+
+        stderr_thread = threading.Thread(target=monitor_stderr, daemon=True)
+        stderr_thread.start()
+
+        # Variables pour l'affichage
+        last_status_time = time.time()
+        sample_count = 0
+        
+        while not shutdown_flag.is_set():
+            line = tcpdump_process.stdout.readline()
+            if not line:
+                if tcpdump_process.poll() is not None:
+                    break
+                continue
+                
+            packet_data = parse_tcpdump_line(line)
+            if packet_data:
+                PACKET_COUNT += 1
+                callback(packet_data)
+                
+                # Afficher les 5 premiers paquets et ensuite 1 paquet toutes les 100 captures
+                if sample_count < 5 or PACKET_COUNT % 100 == 0:
+                    proto = packet_data['protocol']
+                    src = f"{packet_data['source_ip']}:{packet_data.get('source_port', '')}"
+                    dst = f"{packet_data['destination_ip']}:{packet_data.get('destination_port', '')}"
+                    flags = f" [{packet_data.get('flags', '')}]" if packet_data.get('flags') else ""
+                    print(f"[{proto}]{flags} {src} -> {dst}")
+                    sample_count += 1
+                
+                # Afficher le statut toutes les secondes
+                current_time = time.time()
+                if current_time - last_status_time >= 1:
+                    print(f"\rPaquets traités: {PACKET_COUNT} | Non parsés: {UNPARSED_COUNT} | En cours...", end="", flush=True)
+                    last_status_time = current_time
+
+    except Exception as e:
+        logger.error(f"Erreur capture: {e}")
+    finally:
+        if tcpdump_process:
+            tcpdump_process.terminate()
+            try:
+                tcpdump_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                tcpdump_process.kill()
+                
+        print("\n")  # Nouvelle ligne après le statut
+        logger.info("Capture arrêtée")
+        print_summary()
+if __name__ == '__main__':
+    def test_callback(packet):
+        """Callback de test pour afficher les premiers paquets"""
+        if PACKET_COUNT <= 5:
+            logger.info(f"Paquet #{PACKET_COUNT}: {packet['protocol']} {packet['source_ip']} -> {packet['destination_ip']}")
+        elif PACKET_COUNT % 100 == 0:
+            # Afficher un paquet périodiquement pour montrer que ça capture
+            logger.info(f"Paquet #{PACKET_COUNT}: {packet['protocol']} {packet['source_ip']}:{packet.get('source_port', '')} -> {packet['destination_ip']}:{packet.get('destination_port', '')}")
+
+    try:
+        start_capture(test_callback)
+    except Exception as e:
+        logger.error(f"Erreur: {e}")
+    finally:
+        print_summary()

@@ -2,25 +2,45 @@ import json
 from datetime import datetime, timezone, timedelta
 import sys # For example usage and printing
 
-# --- Configuration for Detection Logic ---
-# SYN Scan Detection
-SYN_SCAN_WINDOW_SECONDS = 60  # Time window to track SYN packets from a source
-SYN_SCAN_THRESHOLD_COUNT = 10 # Number of unacknowledged SYNs from one source to trigger alert
-SYN_SCAN_CLEANUP_AGE_SECONDS = SYN_SCAN_WINDOW_SECONDS * 2 # How long to keep SYN scan entries
+# --- Configuration pour la logique de détection ---
+# --- VOS CONFIGURATIONS EXISTANTES (gardées) ---
+# Détection de SYN Scan
+SYN_SCAN_WINDOW_SECONDS = 1
+SYN_SCAN_THRESHOLD_COUNT = 100
 
-# Horizontal Scan Detection (Port Scanning across multiple IPs, or many ports on one IP)
-# For this implementation, we'll focus on one source IP hitting many destination ports.
-HORIZONTAL_SCAN_WINDOW_SECONDS = 60
-HORIZONTAL_SCAN_PORT_THRESHOLD = 10 # Number of unique destination ports hit by one source
-HORIZONTAL_SCAN_CLEANUP_AGE_SECONDS = HORIZONTAL_SCAN_WINDOW_SECONDS * 2
+# Détection de Horizontal Scan
+HORIZONTAL_SCAN_WINDOW_SECONDS = 5
+HORIZONTAL_SCAN_PORT_THRESHOLD = 10  # Réduit le seuil
 
-# Port Sweep Detection (Scanning multiple ports on a single destination IP from a source)
-PORT_SWEEP_WINDOW_SECONDS = 60
-PORT_SWEEP_THRESHOLD = 10 # Number of unique destination ports hit on one dest IP from one source
-PORT_SWEEP_CLEANUP_AGE_SECONDS = PORT_SWEEP_WINDOW_SECONDS * 2
+# Détection de Port Sweep
+PORT_SWEEP_WINDOW_SECONDS = 5
+PORT_SWEEP_THRESHOLD = 10  # Réduit le seuil
 
-# General tracker cleanup
-GENERAL_TRACKER_CLEANUP_INTERVAL_PACKETS = 100 # How often to run cleanup (e.g., every 100 packets)
+# Nettoyage général
+GENERAL_TRACKER_CLEANUP_INTERVAL_PACKETS = 1000
+
+# --- CONSTANTES MANQUANTES (ajoutées pour corriger les erreurs) ---
+# Durées de rétention des trackers (en secondes) - OBLIGATOIRES
+SYN_SCAN_CLEANUP_AGE_SECONDS = 300          # 5 minutes - garde les trackers SYN scan
+PORT_SCAN_CLEANUP_AGE_SECONDS = 300         # 5 minutes - garde les trackers port scan
+BRUTE_FORCE_CLEANUP_AGE_SECONDS = 600       # 10 minutes - garde les trackers brute force
+DDOS_CLEANUP_AGE_SECONDS = 120             # 2 minutes - garde les trackers DDoS
+CONNECTION_FLOOD_CLEANUP_AGE_SECONDS = 180  # 3 minutes - garde les trackers connection flood
+HORIZONTAL_SCAN_CLEANUP_AGE_SECONDS = 300   # 5 minutes - garde les trackers horizontal scan
+PORT_SWEEP_CLEANUP_AGE_SECONDS = 300        # 5 minutes - garde les trackers port sweep
+
+# --- SEUILS ADDITIONNELS (si utilisés dans votre code) ---
+# Détection de Brute Force
+BRUTE_FORCE_WINDOW_SECONDS = 300            # 5 minutes
+BRUTE_FORCE_THRESHOLD_COUNT = 5             # 5 tentatives échouées
+
+# Détection de DDoS
+DDOS_WINDOW_SECONDS = 10                    # 10 secondes
+DDOS_THRESHOLD_PACKETS = 1000               # 1000 paquets en 10 secondes
+
+# Détection de Connection Flood
+CONNECTION_FLOOD_WINDOW_SECONDS = 60        # 1 minute
+CONNECTION_FLOOD_THRESHOLD = 50             # 50 connexions par minute
 
 
 class DetectionEngine:

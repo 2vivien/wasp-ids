@@ -10,7 +10,20 @@ import sys # Added for sys.stderr
 import threading
 from packet_capturer import start_capture as start_packet_capture
 from detection_engine import DetectionEngine
-from log_manager import save_alert_to_db
+import logging
+from logging.handlers import RotatingFileHandler
+
+
+
+# Configuration du logging
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - [IDS] %(message)s')
+handler = RotatingFileHandler('ids_alerts.log', maxBytes=10*1024*1024, backupCount=5)
+handler.setFormatter(formatter)
+handler.setLevel(logging.INFO)
+
+logger = logging.getLogger('IDS_Alert_Logger')
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 CORS(app)
@@ -226,23 +239,69 @@ def get_api_logs():
 def page_not_found(e):
     return render_template('404.html'), 404
 
+@app.route('/api/logs/alertes', methods=['GET'])
+@login_required
+def get_alert_logs():
+    try:
+        # Récupère uniquement les alertes (scan_type non NULL)
+        alert_logs = IDSLog.query.filter(IDSLog.scan_type.isnot(None)).order_by(IDSLog.timestamp.desc()).all()
+        
+        logs_list = []
+        for log_entry in alert_logs:
+            # Assurez-vous que le timestamp est en UTC ou converti correctement
+            timestamp_utc = log_entry.timestamp
+            if timestamp_utc.tzinfo is None:
+                timestamp_utc = timestamp_utc.replace(tzinfo=timezone.utc)
+            else:
+                timestamp_utc = timestamp_utc.astimezone(timezone.utc)
+
+            logs_list.append({
+                'id': log_entry.id,
+                'timestamp': timestamp_utc.isoformat().replace('+00:00', 'Z'),
+                'source_ip': log_entry.source_ip,
+                'destination_ip': log_entry.destination_ip,
+                'source_port': log_entry.source_port,
+                'destination_port': log_entry.destination_port,
+                'protocol': log_entry.protocol,
+                'scan_type': log_entry.scan_type,
+                'severity': log_entry.severity,
+                'details': log_entry.details
+            })
+        return jsonify(logs_list), 200
+    except Exception as e:
+        print(f"Erreur lors de la récupération des alertes : {e}", file=sys.stderr)
+        return jsonify({"error": "Impossible de récupérer les alertes"}), 500
+
 # --- IDS Integration ---
 detection_engine_instance = None
 ids_thread_running = False
 ids_stop_event = threading.Event() # This event is not yet used by packet_capturer to stop tcpdump
 
 def process_packet_callback(packet_data):
+    from log_manager import save_alert_to_db
     global detection_engine_instance
-    if detection_engine_instance and packet_data: # Ensure engine is initialized and data is valid
+    if detection_engine_instance and packet_data:
         try:
             alerts = detection_engine_instance.process_packet(packet_data)
             if alerts:
-                with app.app_context(): # Ensure app context for db operations
+                with app.app_context():
                     for alert in alerts:
-                        print(f"ALERT DETECTED by IDS: {alert['scan_type']} from {alert['source_ip']}") # Server log
-                        save_alert_to_db(alert, app) # 'app' is the Flask app instance
+                        # Affichage dans la console serveur
+                        print(f"🚨 ALERT DETECTED: {alert['scan_type']} from {alert['source_ip']}")
+                        
+                        # Journalisation dans le fichier ids_alerts.log
+                        logger.info(
+                            f"Scan Type: {alert.get('scan_type', 'N/A')}, "
+                            f"Source IP: {alert.get('source_ip', 'N/A')}, "
+                            f"Destination IP: {alert.get('destination_ip', 'N/A')}, "
+                            f"Source Port: {alert.get('source_port', 'N/A')}, "
+                            f"Destination Port: {alert.get('destination_port', 'N/A')}, "
+                            f"Protocol: {alert.get('protocol', 'N/A')}"
+                        )
+                        # Sauvegarde dans la base de données
+                        save_alert_to_db(alert, db, IDSLog)
         except Exception as e:
-            print(f"Error processing packet or saving alert: {e}", file=sys.stderr)
+            logger.error(f"Error processing packet or saving alert: {e}", exc_info=True)
 
 def start_ids_thread():
     global detection_engine_instance, ids_thread_running, ids_stop_event
