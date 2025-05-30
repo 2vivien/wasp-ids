@@ -1,147 +1,136 @@
-tailwind.config = {
-    theme: {
-        extend: {
-            colors: {
-                cyber: {
-                    primary: '#00f7ff',
-                    secondary: '#ff00f7',
-                    dark: '#0a0a1a',
-                    darker: '#050510',
-                    panel: 'rgba(15, 15, 35, 0.8)'
-                }
-            },
-            animation: {
-                'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-                'glow': 'glow 2s ease-in-out infinite alternate',
-                'glow-blue': 'glow-blue 2s ease-in-out infinite alternate',
-                'glow-pink': 'glow-pink 2s ease-in-out infinite alternate',
-            },
-            keyframes: {
-                glow: {
-                    'from': { 'box-shadow': '0 0 5px #00f7ff' },
-                    'to': { 'box-shadow': '0 0 20px #00f7ff' }
-                },
-                'glow-blue': {
-                    'from': { 'box-shadow': '0 0 5px #00f7ff' },
-                    'to': { 'box-shadow': '0 0 20px #00f7ff' }
-                },
-                'glow-pink': {
-                    'from': { 'box-shadow': '0 0 5px #ff00f7' },
-                    'to': { 'box-shadow': '0 0 20px #ff00f7' }
-                }
-            }
+// Tailwind config might be here in the original file, but it's not standard JS.
+// If it was part of the original static/js/journal.js, it should be removed or handled appropriately
+// as JS files typically don't contain Tailwind configurations.
+// For this task, I will assume it's not needed in the JS logic itself.
+
+let actualSystemLogs = []; // Global store for system logs
+
+// DOM Elements
+const systemLogsContainer = document.getElementById('systemLogs');
+// Add other DOM elements if needed for user activities and analyses later
+
+// Function to fetch system logs from the API
+async function fetchSystemLogs() {
+    try {
+        const response = await fetch('/api/logs');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        const backendLogs = await response.json();
+        actualSystemLogs = backendLogs; // Store fetched logs
+        renderSystemLogs(); // Render the fetched logs
+    } catch (error) {
+        console.error("Could not fetch system logs:", error);
+        if(systemLogsContainer) {
+            systemLogsContainer.innerHTML = '<p class="text-red-500">Erreur de chargement des journaux système.</p>';
+        }
+        actualSystemLogs = []; // Ensure it's empty on error
     }
 }
 
+// Function to render system logs
+function renderSystemLogs() {
+    if (!systemLogsContainer) {
+        console.error("System logs container not found in DOM.");
+        return;
+    }
+    systemLogsContainer.innerHTML = ''; // Clear existing logs
 
-// Sample data for logs
-const systemLogs = [
-    { timestamp: '2023-07-18 09:15:23', level: 'INFO', model: 'Kitsune', message: 'Initialisation du système terminée' },
-    { timestamp: '2023-07-18 09:16:45', level: 'INFO', model: 'LUCID', message: 'Mode de surveillance activé' },
-    { timestamp: '2023-07-18 09:18:12', level: 'WARNING', model: 'Kitsune', message: 'Activité réseau inhabituelle détectée' },
-    { timestamp: '2023-07-18 09:20:37', level: 'INFO', model: 'Vertex AI', message: 'Modèle chargé avec succès' },
-    { timestamp: '2023-07-18 09:22:05', level: 'ERROR', model: 'Kitsune', message: 'Échec de connexion à la base de données' },
-    { timestamp: '2023-07-18 09:25:18', level: 'INFO', model: 'LUCID', message: 'Analyse des paquets en cours' },
-    { timestamp: '2023-07-18 09:28:42', level: 'WARNING', model: 'Vertex AI', message: 'Confiance du modèle en dessous du seuil' },
-    { timestamp: '2023-07-18 09:30:15', level: 'INFO', model: 'Kitsune', message: 'Sauvegarde des logs effectuée' },
-    { timestamp: '2023-07-18 09:33:27', level: 'ERROR', model: 'LUCID', message: 'Timeout lors de l\'analyse' },
-    { timestamp: '2023-07-18 09:35:50', level: 'INFO', model: 'Vertex AI', message: 'Nouvelle prédiction générée' }
-];
+    if (actualSystemLogs.length === 0) {
+        systemLogsContainer.innerHTML = '<p class="text-gray-500">Aucun journal système à afficher.</p>';
+        return;
+    }
 
-// Sample data for user activity
-const userActivities = [
-    { username: 'admin_kitsune', action: 'Connexion', timestamp: '2023-07-18 08:30:15', result: 'success' },
-    { username: 'analyst_1', action: 'Mise à jour règles', timestamp: '2023-07-18 08:42:33', result: 'success' },
-    { username: 'auditor_2', action: 'Export données', timestamp: '2023-07-18 09:05:47', result: 'fail' },
-    { username: 'admin_kitsune', action: 'Modification paramètres', timestamp: '2023-07-18 09:18:22', result: 'success' },
-    { username: 'analyst_3', action: 'Connexion', timestamp: '2023-07-18 09:25:10', result: 'fail' },
-    { username: 'auditor_1', action: 'Lecture logs', timestamp: '2023-07-18 09:40:55', result: 'success' }
-];
+    actualSystemLogs.forEach(log => {
+        const logEntryElement = formatLogEntry(log);
+        systemLogsContainer.appendChild(logEntryElement);
+    });
+}
 
-// Sample data for analysis
-const analyses = [
-    { file: 'traffic_0718.pcap', models: 'Kitsune+LUCID', score: '0.92', duration: '2m 15s', verdict: 'Clean', status: 'Completed' },
-    { file: 'suspicious_0717.pcap', models: 'Kitsune+Vertex', score: '0.65', duration: '3m 42s', verdict: 'Suspect', status: 'Completed' },
-    { file: 'malware_sample.pcap', models: 'All', score: '0.23', duration: '1m 58s', verdict: 'Malicious', status: 'Completed' },
-    { file: 'network_dump.pcap', models: 'LUCID', score: '0.78', duration: '4m 15s', verdict: 'Clean', status: 'Failed' },
-    { file: 'internal_scan.pcap', models: 'Kitsune', score: '0.85', duration: '2m 30s', verdict: 'Clean', status: 'Completed' },
-    { file: 'external_probe.pcap', models: 'Vertex AI', score: '0.41', duration: '3m 05s', verdict: 'Suspect', status: 'Completed' }
-];
+// Helper function to determine log level class
+function getLogLevelClass(severity) {
+    if (!severity) return 'INFO'; // Default
+    const s = severity.toLowerCase();
+    if (s === 'critical' || s === 'high') return 'ERROR'; // Map high/critical to ERROR style
+    if (s === 'medium') return 'WARNING';
+    if (s === 'low') return 'INFO';
+    return 'INFO'; // Default for unknown severities
+}
 
-// Initialize the dashboard
+
+// Helper function to format a single log entry with random styling
+function formatLogEntry(log) {
+    const styles = ['Vertex', 'Kitsune', 'Lucid'];
+    const chosenStyle = styles[Math.floor(Math.random() * styles.length)];
+    
+    const logEntry = document.createElement('div');
+    const timestamp = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A';
+    const level = log.severity || 'INFO'; // Default to INFO if severity is null/undefined
+    const logLevelClass = getLogLevelClass(level); // Gets INFO, WARNING, ERROR
+
+    logEntry.className = `log-entry ${logLevelClass} log-style-${chosenStyle.toLowerCase()}`; // Add style-specific class
+
+    let messageContent = ``;
+    const details = log.details ? ` - ${log.details}` : '';
+    const scanInfo = log.scan_type ? ` (${log.scan_type})` : '';
+
+    switch (chosenStyle) {
+        case 'Kitsune':
+            messageContent = `
+                <span class="log-meta">[${timestamp}]</span>
+                <span class="log-level">${level.toUpperCase()}</span>
+                <span class="log-source">Kitsune-Style:</span>
+                <span class="log-message">
+                    ${log.protocol}: ${log.source_ip}:${log.source_port || '?'} &rarr; ${log.destination_ip}:${log.destination_port || '?'} ${scanInfo}${details}
+                </span>`;
+            break;
+        case 'Lucid':
+            messageContent = `
+                <span class="log-meta">[${timestamp}]</span>
+                <span class="log-level">${level.toUpperCase()}</span>
+                <span class="log-source">LUCID-Style:</span>
+                <span class="log-message">
+                    Event${scanInfo}: ${log.source_ip} to ${log.destination_ip}. Severity: ${level}. Details: ${details || 'N/A'}
+                </span>`;
+            break;
+        case 'Vertex': // Vertex AI style
+        default:
+            messageContent = `
+                <span class="log-meta">[${timestamp}]</span>
+                <span class="log-level">${level.toUpperCase()}</span>
+                <span class="log-source">Vertex-Style:</span>
+                <span class="log-message">
+                    Log ID ${log.id}: ${log.protocol} traffic from ${log.source_ip} to ${log.destination_ip}${scanInfo}.${details}
+                </span>`;
+            break;
+    }
+    logEntry.innerHTML = messageContent;
+    return logEntry;
+}
+
+
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // Populate system logs
-    const systemLogsContainer = document.getElementById('systemLogs');
-    systemLogs.forEach(log => {
-        const logEntry = document.createElement('div');
-        logEntry.className = `log-entry ${log.level}`;
-        logEntry.innerHTML = `
-            <span class="text-gray-400">[${log.timestamp}]</span>
-            <span class="font-bold ${log.level === 'INFO' ? 'text-cyber-primary' : log.level === 'WARNING' ? 'text-yellow-500' : 'text-red-500'}">${log.level}</span>
-            <span class="text-cyber-primary">${log.model}:</span>
-            <span>${log.message}</span>
-        `;
-        systemLogsContainer.appendChild(logEntry);
-    });
+    fetchSystemLogs();
 
-    // Populate user activity
+    // Clear out User Activity and Analyses sections for now
     const userActivityContainer = document.getElementById('userActivity');
-    userActivities.forEach(activity => {
-        const card = document.createElement('div');
-        card.className = 'user-card p-4 rounded-lg animate-glow-pink';
-        card.innerHTML = `
-            <div class="flex justify-between items-start mb-2">
-                <h3 class="font-bold text-cyber-secondary">${activity.username}</h3>
-                <span class="text-xs text-gray-400">${activity.timestamp}</span>
-            </div>
-            <p class="text-sm mb-3">Action: ${activity.action}</p>
-            <div class="flex justify-between items-center">
-                <span class="text-xs px-2 py-1 rounded-full ${activity.result === 'success' ? 'success-badge' : 'fail-badge'}">
-                    ${activity.result === 'success' ? 'Succès' : 'Échec'}
-                </span>
-                <button class="text-xs text-cyber-secondary hover:text-cyber-primary">
-                    <i class="fas fa-ellipsis-h"></i>
-                </button>
-            </div>
-        `;
-        userActivityContainer.appendChild(card);
-    });
-
-    // Populate analysis table
+    if (userActivityContainer) userActivityContainer.innerHTML = '<p class="text-gray-500">Journal des activités utilisateurs non implémenté.</p>';
+    
     const analysisTable = document.getElementById('analysisTable');
-    analyses.forEach(analysis => {
-        const row = document.createElement('tr');
-        row.className = `analysis-row ${analysis.status === 'Failed' ? 'text-red-500' : ''}`;
-        row.innerHTML = `
-            <td class="py-3">${analysis.file}</td>
-            <td>${analysis.models}</td>
-            <td>${analysis.score}</td>
-            <td>${analysis.duration}</td>
-            <td class="${analysis.verdict === 'Clean' ? 'text-cyber-primary' : analysis.verdict === 'Suspect' ? 'text-yellow-500' : 'text-red-500'}">
-                ${analysis.verdict}
-            </td>
-            <td class="${analysis.status === 'Completed' ? 'text-cyber-primary' : 'text-red-500'}">
-                ${analysis.status}
-            </td>
-            <td class="text-right">
-                <button class="text-cyber-secondary hover:text-cyber-primary">
-                    <i class="fas fa-download"></i>
-                </button>
-            </td>
-        `;
-        analysisTable.appendChild(row);
-    });
+    if (analysisTable) analysisTable.innerHTML = '<tr><td colspan="7" class="text-center text-gray-500 py-4">Journal des analyses non implémenté.</td></tr>';
 
-    // Panel toggle functionality
+
+    // Panel toggle functionality (can be kept if HTML structure uses it)
     const panelHeaders = document.querySelectorAll('.panel-header');
     panelHeaders.forEach(header => {
         header.addEventListener('click', function() {
             const panel = this.nextElementSibling;
             const icon = this.querySelector('.toggle-panel i');
+            if (!panel || !icon) return;
             
-            if (panel.style.maxHeight) {
-                panel.style.maxHeight = null;
+            if (panel.style.maxHeight && panel.style.maxHeight !== '0px') {
+                panel.style.maxHeight = '0px'; // Explicitly set to 0 for closing
                 icon.className = 'fas fa-chevron-down';
             } else {
                 panel.style.maxHeight = panel.scrollHeight + 'px';
@@ -150,20 +139,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Filter logs by level
+    // Filter logs by level (can be kept and adapted if systemLogsContainer is the target)
     const filterButtons = document.querySelectorAll('.filter-btn');
     filterButtons.forEach(button => {
         button.addEventListener('click', function() {
-            const filter = this.getAttribute('data-filter');
+            const filter = this.getAttribute('data-filter').toUpperCase(); // ERROR, WARNING, INFO
             
-            // Update active state
             filterButtons.forEach(btn => btn.classList.remove('filter-active'));
-            if (filter !== 'all') this.classList.add('filter-active');
+            this.classList.add('filter-active');
             
-            // Filter logs
-            const logEntries = document.querySelectorAll('.log-entry');
+            const logEntries = systemLogsContainer.querySelectorAll('.log-entry');
             logEntries.forEach(entry => {
-                if (filter === 'all' || entry.classList.contains(filter)) {
+                // Check if the entry's level class matches the filter
+                if (filter === 'ALL' || entry.classList.contains(filter)) {
                     entry.style.display = 'block';
                 } else {
                     entry.style.display = 'none';
@@ -171,47 +159,38 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
-
-    // Show failed analyses only toggle
-    const showFailedOnly = document.getElementById('showFailedOnly');
-    showFailedOnly.addEventListener('change', function() {
-        const rows = document.querySelectorAll('.analysis-row');
-        rows.forEach(row => {
-            if (this.checked) {
-                if (row.textContent.includes('Failed')) {
-                    row.style.display = 'table-row';
-                } else {
-                    row.style.display = 'none';
-                }
-            } else {
-                row.style.display = 'table-row';
-            }
+    
+    // Refresh button for system logs
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Actualisation...';
+            fetchSystemLogs().finally(() => {
+                 setTimeout(() => { // Add a small delay to show refresh
+                    this.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>🔄 Actualiser';
+                }, 500);
+            });
         });
-    });
+    }
 
-    // Refresh button
-    document.getElementById('refreshBtn').addEventListener('click', function() {
-        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Actualisation...';
-        setTimeout(() => {
-            this.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>🔄 Actualiser';
-            // In a real app, you would fetch new data here
-        }, 1500);
-    });
+    // Export button (remains mock for now)
+    const exportBtn = document.getElementById('exportBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Export...';
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-file-export mr-2"></i>Exporter CSV';
+                alert('Export CSV démarré! (simulation)');
+            }, 1000);
+        });
+    }
 
-    // Export button
-    document.getElementById('exportBtn').addEventListener('click', function() {
-        this.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Export...';
-        setTimeout(() => {
-            this.innerHTML = '<i class="fas fa-file-export mr-2"></i>Exporter CSV';
-            alert('Export CSV démarré!');
-        }, 1000);
-    });
-
-    // Toggle switch animation
+    // Toggle switch animation (general UI, can be kept)
     const toggleSwitches = document.querySelectorAll('.toggle-checkbox');
     toggleSwitches.forEach(switchEl => {
         switchEl.addEventListener('change', function() {
             const dot = this.nextElementSibling.querySelector('.dot');
+            if (!dot) return;
             if (this.checked) {
                 dot.classList.remove('translate-x-0');
                 dot.classList.add('translate-x-5');
@@ -221,46 +200,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Remove the old 'Show failed analyses only' toggle logic if it's no longer relevant
+    const showFailedOnly = document.getElementById('showFailedOnly');
+    if (showFailedOnly) {
+      // If this element is removed or repurposed, this listener might not be needed
+      // For now, let's assume it might still exist but do nothing if table is cleared
+      showFailedOnly.addEventListener('change', function() {
+        // This logic would need to be re-evaluated if analysis logs are fetched from backend
+        console.log("Toggle 'Show Failed Analyses' changed. Functionality may need update.");
+      });
+    }
 });
 
-// Simulate real-time log updates
-setInterval(() => {
-    const levels = ['INFO', 'WARNING', 'ERROR'];
-    const models = ['Kitsune', 'LUCID', 'Vertex AI'];
-    const messages = [
-        'Nouvelle connexion détectée',
-        'Analyse des paquets en cours',
-        'Activité suspecte détectée',
-        'Mise à jour des règles effectuée',
-        'Timeout lors de la requête',
-        'Sauvegarde des logs terminée'
-    ];
-    
-    const now = new Date();
-    const timestamp = now.toISOString().replace('T', ' ').substring(0, 19);
-    const level = levels[Math.floor(Math.random() * levels.length)];
-    const model = models[Math.floor(Math.random() * models.length)];
-    const message = messages[Math.floor(Math.random() * messages.length)];
-    
-    const logEntry = document.createElement('div');
-    logEntry.className = `log-entry ${level}`;
-    logEntry.innerHTML = `
-        <span class="text-gray-400">[${timestamp}]</span>
-        <span class="font-bold ${level === 'INFO' ? 'text-cyber-primary' : level === 'WARNING' ? 'text-yellow-500' : 'text-red-500'}">${level}</span>
-        <span class="text-cyber-primary">${model}:</span>
-        <span>${message}</span>
-    `;
-    
-    const logsContainer = document.getElementById('systemLogs');
-    logsContainer.insertBefore(logEntry, logsContainer.firstChild);
-    
-    // Keep only the last 50 logs
-    if (logsContainer.children.length > 50) {
-        logsContainer.removeChild(logsContainer.lastChild);
-    }
-    
-    // Auto-scroll if not scrolled up
-    if (logsContainer.scrollTop === 0) {
-        logsContainer.scrollTop = 0;
-    }
-}, 3000);
+// Removed the old setInterval that simulated real-time log updates.
+// Real-time updates for the journal page would require a new Socket.IO event from the backend.

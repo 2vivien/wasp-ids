@@ -7,6 +7,7 @@
         <script src="https://cdn.tailwindcss.com"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
         <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.ico') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
     </head>
@@ -40,7 +41,7 @@
                     <a href="{{ url_for('alert') }}" class="sidebar-item flex items-center p-3 rounded-lg">
                         <i class="fas fa-bell mr-3 text-red-400"></i>
                         <span>Alertes</span>
-                        <span class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full blink">5</span>
+                        <span id="sidebarAlertCount" class="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full blink">0</span>
                     </a>
                     <a href="{{ url_for('journal') }}" class="sidebar-item flex items-center p-3 rounded-lg">
                         <i class="fas fa-scroll mr-3 text-blue-400"></i>
@@ -192,6 +193,9 @@
                                     <i class="fas fa-check-circle mr-1"></i>
                                     Système opérationnel
                                 </p>
+                                <p class="text-xs text-gray-400 mt-1">
+                                    Paquets traités: <span id="dashboardPacketCount">0</span> | Alertes détectées: <span id="dashboardAlertCount">0</span>
+                                </p>
                                 <p class="text-xs text-gray-400 mt-1">Dernière analyse:
                                     <span class="text-green-400">il y a 15s</span>
                                 </p>
@@ -331,7 +335,7 @@
                                         <th class="pb-2">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="criticalAlertsTableBody">
                                     <tr class="border-b border-gray-700/30 hover:bg-gray-800/50 transition">
                                         <td class="py-3">2023-06-15 14:23:45</td>
                                         <td class="text-red-400">192.168.1.45</td>
@@ -452,7 +456,7 @@
             </div>
         </div>
 
-        <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/dashboard_new.js') }}"></script>
         <script>
             
             document.addEventListener("DOMContentLoaded", function () {

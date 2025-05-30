@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask_socketio import SocketIO
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -27,6 +28,7 @@ logger.setLevel(logging.INFO)
 
 app = Flask(__name__)
 CORS(app)
+socketio = SocketIO(app)
 
 # Clé secrète pour les sessions
 app.secret_key = 'supersecretkey'
@@ -276,15 +278,20 @@ def get_alert_logs():
 detection_engine_instance = None
 ids_thread_running = False
 ids_stop_event = threading.Event() # This event is not yet used by packet_capturer to stop tcpdump
+total_packets_processed = 0
+total_alerts_detected = 0
 
 def process_packet_callback(packet_data):
     from log_manager import save_alert_to_db
-    global detection_engine_instance
+    global detection_engine_instance, total_packets_processed, total_alerts_detected
     if detection_engine_instance and packet_data:
+        total_packets_processed += 1
         try:
             alerts = detection_engine_instance.process_packet(packet_data)
             if alerts:
                 with app.app_context():
+                    num_alerts = len(alerts)
+                    total_alerts_detected += num_alerts
                     for alert in alerts:
                         # Affichage dans la console serveur
                         print(f"🚨 ALERT DETECTED: {alert['scan_type']} from {alert['source_ip']}")
@@ -300,6 +307,10 @@ def process_packet_callback(packet_data):
                         )
                         # Sauvegarde dans la base de données
                         save_alert_to_db(alert, db, IDSLog)
+                        # Emit alert via SocketIO
+                        socketio.emit('new_alert', alert)
+                # Emit system status update via SocketIO after processing alerts
+                socketio.emit('system_status_update', {'packets': total_packets_processed, 'alerts': total_alerts_detected})
         except Exception as e:
             logger.error(f"Error processing packet or saving alert: {e}", exc_info=True)
 
@@ -334,4 +345,4 @@ if __name__ == '__main__':
     # The daemon=True on the IDS thread means it will terminate when the main application exits.
     # A more robust stop mechanism for the tcpdump process within packet_capturer would
     # involve managing the subprocess.Popen object directly to send a SIGINT/SIGTERM.
-    app.run(debug=True, use_reloader=False)
+    socketio.run(app, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
