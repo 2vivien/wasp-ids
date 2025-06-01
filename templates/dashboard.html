@@ -307,95 +307,29 @@
                         </div>
                     </div>
 
-                    <!-- Critical alerts -->
                     <div class="bg-gray-800/50 rounded-xl p-6 border border-gray-700/50 alert-glow mb-6 backdrop-blur-sm">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-lg font-semibold flex items-center">
                                 <i class="fas fa-exclamation-triangle mr-2 text-red-400 blink"></i>
-                                Alertes critiques 🚨
+                                Alertes critiques récentes 🚨
                             </h3>
-                            <button class="text-xs text-red-400 hover:text-red-300 transition">
-                                <i class="fas fa-ellipsis-h"></i>
+                            <button onclick="fetchAndRenderCriticalAlerts()" class="text-xs text-blue-400 hover:text-blue-300 transition" title="Actualiser les alertes critiques">
+                                <i class="fas fa-sync-alt"></i>
                             </button>
                         </div>
-
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-sm">
+                        <div class="overflow-x-auto max-h-96"> <table class="w-full text-sm">
                                 <thead>
                                     <tr class="text-left text-gray-400 border-b border-gray-700/50">
-                                        <th class="pb-2">Timestamp</th>
-                                        <th class="pb-2">IP Source</th>
-                                        <th class="pb-2">Modèle</th>
-                                        <th class="pb-2">Type</th>
-                                        <th class="pb-2">Score de menace</th>
-                                        <th class="pb-2">Actions</th>
+                                        <th class="pb-2 px-2">Timestamp</th>
+                                        <th class="pb-2 px-2">IP Source</th>
+                                        <th class="pb-2 px-2">Modèle</th>
+                                        <th class="pb-2 px-2">Type</th>
+                                        <th class="pb-2 px-2">Score Menace</th>
+                                        <th class="pb-2 px-2 text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr class="border-b border-gray-700/30 hover:bg-gray-800/50 transition">
-                                        <td class="py-3">2023-06-15 14:23:45</td>
-                                        <td class="text-red-400">192.168.1.45</td>
-                                        <td>Kitsune</td>
-                                        <td>DDoS</td>
-                                        <td>
-                                            <div class="threat-score">
-                                                <span class="text-red-400">0.98</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="text-green-400 hover:text-green-300 transition">
-                                                <i class="fas fa-search"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr class="border-b border-gray-700/30 hover:bg-gray-800/50 transition">
-                                        <td class="py-3">2023-06-15 13:56:12</td>
-                                        <td class="text-red-400">45.33.12.78</td>
-                                        <td>LUCID</td>
-                                        <td>Zero-Day</td>
-                                        <td>
-                                            <div class="threat-score">
-                                                <span class="text-red-400">0.95</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="text-green-400 hover:text-green-300 transition">
-                                                <i class="fas fa-search"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr class="border-b border-gray-700/30 hover:bg-gray-800/50 transition">
-                                        <td class="py-3">2023-06-15 12:34:56</td>
-                                        <td class="text-red-400">10.0.0.23</td>
-                                        <td>Vertex AI</td>
-                                        <td>Brute Force</td>
-                                        <td>
-                                            <div class="threat-score">
-                                                <span class="text-orange-400">0.87</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="text-green-400 hover:text-green-300 transition">
-                                                <i class="fas fa-search"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    <tr class="hover:bg-gray-800/50 transition">
-                                        <td class="py-3">2023-06-15 11:45:23</td>
-                                        <td class="text-red-400">172.16.0.42</td>
-                                        <td>Kitsune</td>
-                                        <td>Port Scan</td>
-                                        <td>
-                                            <div class="threat-score">
-                                                <span class="text-orange-400">0.82</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <button class="text-green-400 hover:text-green-300 transition">
-                                                <i class="fas fa-search"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
+                                <tbody id="criticalAlertsTableBody">
+                                    <tr><td colspan="6" class="text-center py-4 text-gray-500">Chargement des alertes...</td></tr>
                                 </tbody>
                             </table>
                         </div>
