@@ -10428,3 +10428,370 @@ NameError: name 'serialize_alert' is not defined
 2025-06-01 11:55:44,067 - INFO - [IDS_ALERT] Scan: Port Sweep, SrcIP: 209.127.202.183, DstIP: 192.168.0.108, SrcPort: 443, DstPort: None, Proto: TCP, Sev: Medium, Details: Source IP 209.127.202.183 swept 13 unique ports on 192.168.0.108 within 5s.
 2025-06-01 11:55:44,190 - INFO - [IDS_ALERT] Scan: Horizontal Scan (Port Scan), SrcIP: 209.127.202.183, DstIP: 192.168.0.108, SrcPort: 443, DstPort: None, Proto: TCP, Sev: Medium, Details: Source IP 209.127.202.183 scanned 13 unique ports within 5s.
 2025-06-01 11:55:44,322 - INFO - [IDS_ALERT] Scan: Port Sweep, SrcIP: 209.127.202.183, DstIP: 192.168.0.108, SrcPort: 443, DstPort: None, Proto: TCP, Sev: Medium, Details: Source IP 209.127.202.183 swept 13 unique ports on 192.168.0.108 within 5s.
+2025-06-03 12:12:31,347 - INFO - [IDS] Base de données initialisée.
+2025-06-03 12:30:29,761 - INFO - [IDS] Base de données initialisée.
+2025-06-03 14:26:05,396 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:05,852 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:05,856 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:05,954 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:05,961 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,030 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,035 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,108 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,112 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,174 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,177 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,252 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,256 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,319 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,323 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,397 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,400 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,463 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,466 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,530 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,542 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,619 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:06,622 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:06,697 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:15,956 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,054 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,060 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,142 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,268 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,354 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,370 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,431 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,576 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,653 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,682 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,754 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,759 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,843 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,858 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:16,954 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:16,986 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:17,065 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:17,077 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:17,143 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:26,932 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:27,055 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:27,058 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:27,122 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:27,143 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:27,211 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:27,246 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:27,322 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:27,452 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:27,577 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:26:28,593 - INFO - [IDS] Scan Type: Horizontal Scan (Port Scan), Source IP: 209.127.202.183, Destination IP: 192.168.0.108, Source Port: 443, Destination Port: None, Protocol: TCP
+2025-06-03 14:26:28,678 - ERROR - [IDS] Error processing packet or saving alert: type object 'datetime.datetime' has no attribute 'datetime'
+Traceback (most recent call last):
+  File "/home/vivien/wasp-ids/app.py", line 319, in process_packet_callback
+    socketio.emit('new_alert', serialize_alert(alert))
+                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 290, in serialize_alert
+    return {key: convert(value) for key, value in alert.items()}
+                 ^^^^^^^^^^^^^^
+  File "/home/vivien/wasp-ids/app.py", line 286, in convert
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+                        ^^^^^^^^^^^^^^^^^
+AttributeError: type object 'datetime.datetime' has no attribute 'datetime'
+2025-06-03 14:27:49,910 - INFO - [IDS] Base de données initialisée.

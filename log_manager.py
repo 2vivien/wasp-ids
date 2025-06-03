@@ -1,7 +1,6 @@
 # This file will handle logging of IDS events and alerts.
 # It will interact with the IDSLog model and the database.
 
-from app import IDSLog, db  # Assuming app.py contains IDSLog model and db instance
 from datetime import datetime, timezone
 from flask import current_app
 

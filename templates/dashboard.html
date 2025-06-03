@@ -386,31 +386,86 @@
             </div>
         </div>
 
-        <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-        <script>
+<!-- Alert Details Modal for Dashboard -->
+<div id="dashboardAlertModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-75 transition-opacity duration-300 ease-in-out opacity-0">
+    <div class="bg-gray-800/90 backdrop-blur-md rounded-xl shadow-2xl border border-gray-700/50 w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-300 ease-in-out scale-95 opacity-0" id="dashboardAlertModalContent">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-700/50">
+            <h3 class="text-xl font-semibold flex items-center" id="modalDashboardTitle">
+                <i class="fas fa-shield-alt mr-2"></i>Détails de l'Alerte
+            </h3>
+            <button id="closeDashboardAlertModal" class="text-gray-400 hover:text-white transition">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 space-y-4 overflow-y-auto">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><strong class="text-green-400">ID:</strong> <span id="modalDashboardSubtitle" class="font-mono">N/A</span></div>
+                <div><strong class="text-green-400">Timestamp:</strong> <span id="modalDashboardTimestamp" class="font-mono">N/A</span></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><strong class="text-green-400">IP Source:</strong> <span id="modalDashboardSourceIP" class="font-mono">N/A</span></div>
+                <div><strong class="text-green-400">Port Source:</strong> <span id="modalDashboardSourcePort" class="font-mono">N/A</span></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><strong class="text-green-400">IP Destination:</strong> <span id="modalDashboardDestIP" class="font-mono">N/A</span></div>
+                <div><strong class="text-green-400">Port Destination:</strong> <span id="modalDashboardDestPort" class="font-mono">N/A</span></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><strong class="text-green-400">Protocole:</strong> <span id="modalDashboardProtocol" class="font-mono">N/A</span></div>
+                <div><strong class="text-green-400">Modèle Détecteur:</strong> <span id="modalDashboardModel" class="font-mono">N/A</span></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><strong class="text-green-400">Type d'Alerte:</strong> <span id="modalDashboardType" class="font-mono">N/A</span></div>
+                <div><strong class="text-green-400">Score de Menace:</strong> <span id="modalDashboardScore" class="font-mono">N/A</span></div>
+            </div>
+            <div><strong class="text-green-400">Sévérité:</strong> <span id="modalDashboardSeverity" class="font-mono capitalize">N/A</span></div>
             
-            document.addEventListener("DOMContentLoaded", function () {
-            const profileTrigger = document.getElementById("profile-trigger");
-            const profileMenu = document.getElementById("profile-menu");
-            const chevronIcon = document.getElementById("chevron-icon");
+            <div>
+                <strong class="text-green-400">Détails Bruts:</strong>
+                <pre id="modalDashboardRawDetails" class="bg-gray-900/50 p-3 rounded-md text-xs font-mono whitespace-pre-wrap max-h-40 overflow-y-auto border border-gray-700/50">N/A</pre>
+            </div>
+             <div>
+                <strong class="text-green-400">Recommandations:</strong>
+                <ul id="modalDashboardRecommendations" class="list-disc list-inside pl-2 space-y-1 text-sm">
+                    <li>N/A</li>
+                </ul>
+            </div>
+        </div>
 
-            profileTrigger.addEventListener("click", function (e) {
-                e.stopPropagation(); // Empêche la propagation pour ne pas déclencher le document.click immédiatement
-                profileMenu.classList.toggle("hidden");
-                chevronIcon.classList.toggle("rotate-180");
-            });
+        <!-- Modal Footer -->
+        <div class="p-4 border-t border-gray-700/50 text-right">
+            <button id="secondaryActionDashboardAlertModal" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition text-sm mr-2">Action Secondaire</button>
+            <button id="primaryActionDashboardAlertModal" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition text-sm">Action Primaire</button>
+        </div>
+    </div>
+</div>
 
-            // Refermer le menu si on clique ailleurs
-            document.addEventListener("click", function () {
-                profileMenu.classList.add("hidden");
-                chevronIcon.classList.remove("rotate-180");
-            });
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script>
+    
+    document.addEventListener('DOMContentLoaded', function() {
+    const profileTrigger = document.getElementById('profile-trigger');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const chevronIcon = document.getElementById('chevron-icon');
 
-            // Empêcher la fermeture quand on clique dans le menu
-            profileMenu.addEventListener("click", function (e) {
-                e.stopPropagation();
-            });
+    if (profileTrigger && profileDropdown && chevronIcon) {
+        profileTrigger.addEventListener('click', function() {
+            profileDropdown.classList.toggle('hidden');
+            chevronIcon.classList.toggle('rotate-180');
         });
+
+        // Fermer le dropdown si on clique en dehors
+        document.addEventListener('click', function(event) {
+            if (!profileTrigger.contains(event.target) && !profileDropdown.contains(event.target)) {
+                profileDropdown.classList.add('hidden');
+                chevronIcon.classList.remove('rotate-180');
+            }
+        });
+    }
+});
 </script>
      
     </body>
