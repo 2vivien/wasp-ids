@@ -55,14 +55,15 @@ document.addEventListener("DOMContentLoaded", () => {
       fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ identifier: username, password: password })
       })
-      .then(response => response.json())
-      .then(data => {
-        if (data.message === "Connexion réussie") {
-          window.location.href = data.redirect || "/dashboard"; // Remplace par `url_for()` si besoin
+      .then(response => response.json().then(data => ({ status: response.status, body: data })))
+      .then(({ status, body }) => {
+        if (status === 200 && body.message && body.redirect) {
+          window.location.href = body.redirect || "/dashboard";
         } else {
-          showError(usernameInput, data.error || "Identifiants incorrects.");
+          showError(usernameInput, body.error || "Identifiants incorrects.");
           showError(passwordInput, "");
         }
       })

@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timezone, timedelta
 import sys # For example usage and printing
+import logging
 
 # --- Configuration pour la logique de détection ---
 # --- VOS CONFIGURATIONS EXISTANTES (gardées) ---
@@ -44,10 +45,10 @@ CONNECTION_FLOOD_THRESHOLD = 50             # 50 connexions par minute
 
 
 class DetectionEngine:
-    def __init__(self, config_path="anomaly_detection_config.json"):
+    def __init__(self, config_path="anomaly_detection_config.json", logger_instance=None):
         self.config_path = config_path
         self.anomaly_config = None
-        self._load_config()
+        self.logger = logger_instance if logger_instance else logging.getLogger(__name__)
 
         # State Management Data Structures
         # For SYN Scan: {'src_ip': [{'ts': datetime, 'dst_ip': ip, 'dst_port': port, 'acked': False}, ...]}
@@ -68,16 +69,16 @@ class DetectionEngine:
         try:
             with open(self.config_path, 'r') as f:
                 self.anomaly_config = json.load(f)
-            print(f"DetectionEngine: Anomaly detection configuration loaded from '{self.config_path}'.")
-            print(f"DetectionEngine: Config content - MLJAR Results Path: {self.anomaly_config.get('mljar_results_path', 'Not specified')}")
+            self.logger.info(f"DetectionEngine: Anomaly detection configuration loaded from '{self.config_path}'.")
+            self.logger.info(f"DetectionEngine: Config content - MLJAR Results Path: {self.anomaly_config.get('mljar_results_path', 'Not specified')}")
         except FileNotFoundError:
-            print(f"DetectionEngine: Warning - Anomaly detection config file '{self.config_path}' not found. Anomaly detection may be limited.")
+            self.logger.warning(f"DetectionEngine: Warning - Anomaly detection config file '{self.config_path}' not found. Anomaly detection may be limited.")
             self.anomaly_config = {} # Ensure it's a dict
         except json.JSONDecodeError:
-            print(f"DetectionEngine: Error - Could not decode JSON from '{self.config_path}'.")
+            self.logger.error(f"DetectionEngine: Error - Could not decode JSON from '{self.config_path}'.")
             self.anomaly_config = {}
         except Exception as e:
-            print(f"DetectionEngine: Error loading config '{self.config_path}': {e}")
+            self.logger.error(f"DetectionEngine: Error loading config '{self.config_path}': {e}")
             self.anomaly_config = {}
 
     def _cleanup_trackers(self):
@@ -85,6 +86,7 @@ class DetectionEngine:
         Cleans up old entries from state trackers to prevent memory exhaustion.
         """
         now = datetime.now(timezone.utc)
+        self.logger.debug("DetectionEngine: Starting tracker cleanup.")
 
         # Cleanup SYN Scan Tracker
         cleanup_time_syn = now - timedelta(seconds=SYN_SCAN_CLEANUP_AGE_SECONDS)
@@ -117,7 +119,7 @@ class DetectionEngine:
             if not data['ports_hit'] and not data['timestamps']:
                 del self.port_sweep_tracker[pair_key]
         
-        # print("DetectionEngine: Trackers cleaned up.", file=sys.stderr)
+        self.logger.debug("DetectionEngine: Trackers cleaned up.")
 
 
     def _detect_syn_scan(self, packet_data: dict) -> dict | None:
@@ -160,6 +162,7 @@ class DetectionEngine:
             ]
 
             if len(relevant_syns) >= SYN_SCAN_THRESHOLD_COUNT:
+                self.logger.info(f"DetectionEngine: SYN Scan détecté de {src_ip} avec {len(relevant_syns)} paquets SYN non acquittés en {SYN_SCAN_WINDOW_SECONDS}s.")
                 # To avoid repeated alerts for the same ongoing scan,
                 # we could add a cooldown mechanism here (e.g., alert once per window per IP)
                 # For now, basic alert generation:
@@ -226,6 +229,7 @@ class DetectionEngine:
         # A more accurate way would be to store (port, timestamp) pairs.
         # For now, if there are recent SYNs, check the size of the cumulative set of ports.
         if recent_timestamps and len(tracker['ports_hit']) >= HORIZONTAL_SCAN_PORT_THRESHOLD:
+            self.logger.info(f"DetectionEngine: Horizontal Scan détecté de {src_ip} avec {len(tracker['ports_hit'])} ports uniques en {HORIZONTAL_SCAN_WINDOW_SECONDS}s.")
             # To avoid re-alerting, one might add a cooldown or check if an alert for this scan is already active.
             return {
                 "timestamp": packet_timestamp,
@@ -270,6 +274,7 @@ class DetectionEngine:
         tracker['timestamps'] = recent_timestamps
 
         if recent_timestamps and len(tracker['ports_hit']) >= PORT_SWEEP_THRESHOLD:
+            self.logger.info(f"DetectionEngine: Port Sweep détecté de {src_ip} vers {dst_ip} avec {len(tracker['ports_hit'])} ports uniques en {PORT_SWEEP_WINDOW_SECONDS}s.")
             return {
                 "timestamp": packet_timestamp,
                 "source_ip": src_ip,
@@ -292,7 +297,7 @@ class DetectionEngine:
         # then use the loaded model (from self.anomaly_config['mljar_results_path']) to predict.
         # Or, apply statistical thresholds derived during training.
         if self.anomaly_config:
-            # print(f"DetectionEngine: Anomaly detection check for packet. Config: {self.anomaly_config.get('mljar_results_path')}", file=sys.stderr)
+            self.logger.debug(f"DetectionEngine: Anomaly detection check for packet. Config path: {self.anomaly_config.get('mljar_results_path')}")
             pass # No actual detection logic yet
         return []
 
@@ -303,7 +308,10 @@ class DetectionEngine:
         """
         alerts = []
         if not isinstance(packet_data, dict): # Ensure packet_data is a dictionary
+            self.logger.warning(f"DetectionEngine: Reçu un paquet de données non-dictionnaire: {type(packet_data)}")
             return alerts
+
+        self.logger.debug(f"DetectionEngine: Début du traitement du paquet: Protocol={packet_data.get('protocol')}, SrcIP={packet_data.get('source_ip')}, DstIP={packet_data.get('destination_ip')}")
 
         # Periodically cleanup trackers
         self.packets_processed_since_last_cleanup += 1
@@ -336,6 +344,7 @@ class DetectionEngine:
         anomaly_alerts = self._detect_anomalies(packet_data)
         alerts.extend(anomaly_alerts)
 
+        self.logger.debug(f"DetectionEngine: Terminé le traitement du paquet. Alertes générées: {len(alerts)}")
         return alerts
 
 if __name__ == '__main__':
